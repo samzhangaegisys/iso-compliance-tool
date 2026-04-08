@@ -4,68 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, Users, Info } from "lucide-react";
 import { AnimateIn } from "@/components/landing/scroll-reveal";
+import { PLANS } from "@/lib/plans";
 
-const plans = [
-  {
-    name: "Starter",
-    monthlyPerUser: 29,
-    annualPerUser: 23,
-    minUsers: 5,
-    description: "For small teams starting their compliance journey",
-    features: [
-      "1 ISO standard (chosen at sign-up)",
-      "5–10 users",
-      "AI-guided gap analysis",
-      "Evidence vault",
-      "PDF audit reports",
-      "Email support",
-    ],
-    cta: "Get Started",
-    href: "/register?plan=starter",
-    highlighted: false,
-    badge: null,
-  },
-  {
-    name: "Professional",
-    monthlyPerUser: 49,
-    annualPerUser: 39,
-    minUsers: 5,
-    description: "For growing teams managing multiple ISO standards",
-    features: [
-      "All 5 ISO standards",
-      "Unlimited users (min. 5)",
-      "AI Compliance Advisor",
-      "Evidence vault with auto-expiry",
-      "Branded audit reports",
-      "Team task management",
-      "Priority support",
-    ],
-    cta: "Get Started",
-    href: "/register?plan=professional",
-    highlighted: true,
-    badge: "Most Popular",
-  },
-  {
-    name: "Enterprise",
-    monthlyPerUser: 79,
-    annualPerUser: 63,
-    minUsers: 5,
-    description: "For large organisations and consulting firms",
-    features: [
-      "Everything in Professional",
-      "SSO / SAML",
-      "Custom integrations & API",
-      "Automated onboarding portal",
-      "99.9% SLA guarantee",
-      "On-premises deployment option",
-      "Custom contract & invoicing",
-    ],
-    cta: "Get Started",
-    href: "/register?plan=enterprise",
-    highlighted: false,
-    badge: null,
-  },
-];
+const plans = PLANS.map((p) => ({
+  ...p,
+  cta: "Get Started",
+  href: `/register?plan=${p.id}`,
+}));
 
 export function PricingSection() {
   const [billing, setBilling] = useState<"monthly" | "annual">("monthly");

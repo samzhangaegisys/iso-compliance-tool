@@ -16,7 +16,10 @@ function generateRegToken(): string {
 export async function POST(req: Request) {
   const prisma = getPrisma();
   if (!prisma) {
-    return NextResponse.json({ error: "Database not available" }, { status: 503 });
+    const hint = process.env.NODE_ENV === "development"
+      ? "Database not connected. Run `npx prisma generate` then `npx prisma db push` and ensure DATABASE_URL is set in .env.local."
+      : "Service temporarily unavailable. Please try again shortly.";
+    return NextResponse.json({ error: hint }, { status: 503 });
   }
 
   const body = await req.json();
