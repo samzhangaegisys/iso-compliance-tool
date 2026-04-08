@@ -183,7 +183,7 @@ export default function FeaturesPage() {
               className="bg-blue-600 hover:bg-blue-500 text-white h-12 px-8 font-semibold"
               render={<Link href="/register" />}
             >
-              Start Free Trial
+              Create Account
               <ArrowRight className="ml-2 size-4" />
             </Button>
             <Button
@@ -278,7 +278,7 @@ export default function FeaturesPage() {
               className="bg-blue-600 hover:bg-blue-500 text-white h-12 px-10 font-semibold"
               render={<Link href="/register" />}
             >
-              Start Free Trial
+              Create Account
               <ArrowRight className="ml-2 size-4" />
             </Button>
             <Button

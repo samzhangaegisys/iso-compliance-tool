@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import {
   ShieldCheck, Mail, Lock, User, Phone, AlertCircle, ArrowRight,
-  CheckCircle2, Building2, Smartphone, CreditCard, Check, Eye, EyeOff, Star, Users,
+  CheckCircle2, Building2, Smartphone, CreditCard, Eye, EyeOff, Users,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,11 +15,44 @@ import { TurnstileWidget } from "@/components/ui/turnstile-widget";
 import { getPasswordChecks, isPasswordStrong } from "@/lib/password-checks";
 import { PLANS, type PlanId } from "@/lib/plans";
 
+// ─── Country codes ────────────────────────────────────────────────────────────
+
+const COUNTRY_CODES = [
+  { code: "+61", country: "AU", flag: "🇦🇺", name: "Australia", pattern: /^04\d{8}$/, hint: "04XX XXX XXX" },
+  { code: "+1",  country: "US", flag: "🇺🇸", name: "United States", pattern: /^\d{10}$/, hint: "XXX XXX XXXX" },
+  { code: "+1",  country: "CA", flag: "🇨🇦", name: "Canada", pattern: /^\d{10}$/, hint: "XXX XXX XXXX" },
+  { code: "+44", country: "GB", flag: "🇬🇧", name: "United Kingdom", pattern: /^07\d{9}$/, hint: "07XXX XXXXXX" },
+  { code: "+64", country: "NZ", flag: "🇳🇿", name: "New Zealand", pattern: /^02\d{7,9}$/, hint: "02X XXX XXXX" },
+  { code: "+65", country: "SG", flag: "🇸🇬", name: "Singapore", pattern: /^[89]\d{7}$/, hint: "8XXX XXXX" },
+  { code: "+60", country: "MY", flag: "🇲🇾", name: "Malaysia", pattern: /^01\d{8,9}$/, hint: "01X XXXX XXXX" },
+  { code: "+91", country: "IN", flag: "🇮🇳", name: "India", pattern: /^[6-9]\d{9}$/, hint: "XXXXX XXXXX" },
+  { code: "+86", country: "CN", flag: "🇨🇳", name: "China", pattern: /^1[3-9]\d{9}$/, hint: "1XX XXXX XXXX" },
+  { code: "+81", country: "JP", flag: "🇯🇵", name: "Japan", pattern: /^0\d{9,10}$/, hint: "0X XXXX XXXX" },
+  { code: "+82", country: "KR", flag: "🇰🇷", name: "South Korea", pattern: /^01\d{8,9}$/, hint: "01X XXXX XXXX" },
+  { code: "+852", country: "HK", flag: "🇭🇰", name: "Hong Kong", pattern: /^[569]\d{7}$/, hint: "XXXX XXXX" },
+  { code: "+49", country: "DE", flag: "🇩🇪", name: "Germany", pattern: /^\d{10,11}$/, hint: "0XXX XXXXXXX" },
+  { code: "+33", country: "FR", flag: "🇫🇷", name: "France", pattern: /^0[67]\d{8}$/, hint: "06 XX XX XX XX" },
+  { code: "+971", country: "AE", flag: "🇦🇪", name: "UAE", pattern: /^05\d{8}$/, hint: "05X XXX XXXX" },
+  { code: "+27", country: "ZA", flag: "🇿🇦", name: "South Africa", pattern: /^0[67]\d{8}$/, hint: "06X XXX XXXX" },
+  { code: "+55", country: "BR", flag: "🇧🇷", name: "Brazil", pattern: /^\d{10,11}$/, hint: "XX XXXXX XXXX" },
+  { code: "+63", country: "PH", flag: "🇵🇭", name: "Philippines", pattern: /^09\d{9}$/, hint: "09XX XXX XXXX" },
+  { code: "+66", country: "TH", flag: "🇹🇭", name: "Thailand", pattern: /^0[689]\d{8}$/, hint: "0X XXXX XXXX" },
+  { code: "+62", country: "ID", flag: "🇮🇩", name: "Indonesia", pattern: /^08\d{8,11}$/, hint: "08XX XXXX XXXX" },
+];
+
+function validatePhone(dialCode: string, number: string): boolean {
+  const digits = number.replace(/\D/g, "");
+  if (!digits) return true; // optional field — blank is fine
+  const entry = COUNTRY_CODES.find((c) => c.code === dialCode && (c.country === "US" ? dialCode === "+1" : true));
+  if (!entry) return digits.length >= 7 && digits.length <= 15;
+  return entry.pattern.test(digits);
+}
+
 // ─── State ────────────────────────────────────────────────────────────────────
 
 interface RegState {
   plan: PlanId;
-  name: string; email: string; phone: string; password: string;
+  name: string; email: string; phone: string; dialCode: string; password: string;
   consentTerms: boolean; consentMarketing: boolean;
   userId: string; regToken: string;
   paid: boolean;
@@ -30,7 +63,7 @@ interface RegState {
 
 const INITIAL: RegState = {
   plan: "starter",
-  name: "", email: "", phone: "", password: "",
+  name: "", email: "", phone: "", dialCode: "+61", password: "",
   consentTerms: false, consentMarketing: false,
   userId: "", regToken: "",
   paid: false, otp: "",
@@ -82,7 +115,6 @@ function LeftPanel({ step }: { step: number }) {
         </div>
       </div>
       <div className="relative border border-white/10 rounded-2xl p-5 bg-white/[0.03]">
-        <div className="flex gap-0.5 mb-3">{[1,2,3,4,5].map((s) => <Star key={s} className="size-3.5 fill-amber-400 text-amber-400" />)}</div>
         <p className="text-sm text-slate-300 leading-relaxed mb-4">&ldquo;ISOComply cut our ISO 27001 preparation time by 60%. We were audit-ready in under 3 months.&rdquo;</p>
         <div className="flex items-center gap-3">
           <div className="size-8 rounded-full bg-gradient-to-br from-emerald-500 to-blue-500 flex items-center justify-center">
@@ -114,6 +146,7 @@ function RegisterForm() {
   const [captchaToken, setCaptchaToken] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [otpResent, setOtpResent] = useState(false);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
 
   const set = (patch: Partial<RegState>) => setState((s) => ({ ...s, ...patch }));
 
@@ -162,7 +195,7 @@ function RegisterForm() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: state.name, email: state.email, password: state.password, phone: state.phone, consentTerms: state.consentTerms, consentMarketing: state.consentMarketing, captchaToken }),
+        body: JSON.stringify({ name: state.name, email: state.email, password: state.password, phone: state.phone ? `${state.dialCode}${state.phone.replace(/\D/g, "")}` : undefined, consentTerms: state.consentTerms, consentMarketing: state.consentMarketing, captchaToken }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Registration failed. Please try again."); return; }
@@ -383,15 +416,47 @@ function RegisterForm() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="reg-phone" className="text-sm font-medium text-slate-700">
-                    Mobile number <span className="text-slate-400 font-normal">(for account recovery)</span>
+                  <Label className="text-sm font-medium text-slate-700">
+                    Mobile number <span className="text-slate-400 font-normal">(optional — for account recovery)</span>
                   </Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none" />
-                    <Input id="reg-phone" type="tel" value={state.phone} onChange={(e) => set({ phone: e.target.value })}
-                      placeholder="+61 400 000 000" className="pl-10 h-11 rounded-xl border-slate-200 text-sm"
-                      autoComplete="tel" />
+                  <div className="flex gap-2">
+                    {/* Country code selector */}
+                    <select
+                      value={state.dialCode}
+                      onChange={(e) => { set({ dialCode: e.target.value, phone: "" }); setPhoneError(null); }}
+                      className="h-11 rounded-xl border border-slate-200 text-sm px-2 bg-white text-slate-700 shrink-0 focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
+                      style={{ width: "100px" }}
+                    >
+                      {COUNTRY_CODES.map((c) => (
+                        <option key={`${c.code}-${c.country}`} value={c.code}>
+                          {c.flag} {c.code}
+                        </option>
+                      ))}
+                    </select>
+                    {/* Number input */}
+                    <div className="relative flex-1">
+                      <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none" />
+                      <Input
+                        id="reg-phone"
+                        type="tel"
+                        value={state.phone}
+                        onChange={(e) => {
+                          set({ phone: e.target.value });
+                          setPhoneError(null);
+                        }}
+                        onBlur={() => {
+                          if (state.phone && !validatePhone(state.dialCode, state.phone)) {
+                            const entry = COUNTRY_CODES.find((c) => c.code === state.dialCode);
+                            setPhoneError(`Format: ${entry?.hint ?? "digits only"}`);
+                          }
+                        }}
+                        placeholder={COUNTRY_CODES.find((c) => c.code === state.dialCode)?.hint ?? "Number"}
+                        className={`pl-10 h-11 rounded-xl text-sm ${phoneError ? "border-red-300 focus:border-red-400 focus:ring-red-100" : "border-slate-200"}`}
+                        autoComplete="tel-national"
+                      />
+                    </div>
                   </div>
+                  {phoneError && <p className="text-xs text-red-500 mt-1">{phoneError}</p>}
                 </div>
 
                 <div className="space-y-1.5">

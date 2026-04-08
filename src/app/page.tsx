@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import HeroCanvas from "@/components/landing/hero-canvas";
-import { AppScreensSlideshow } from "@/components/landing/app-screens-slideshow";
+import { HeroDashboard } from "@/components/landing/hero-dashboard";
 import { FeatureVisual } from "@/components/landing/feature-visuals";
 import { PricingSection } from "@/components/landing/pricing-section";
 import { ComparisonSection } from "@/components/landing/comparison-section";
@@ -184,59 +184,6 @@ const testimonials = [
   },
 ];
 
-const plans = [
-  {
-    name: "Free",
-    price: "£0",
-    period: "forever",
-    description: "Perfect for exploring the platform",
-    features: [
-      "1 organisation",
-      "1 ISO standard",
-      "Up to 5 users",
-      "Basic gap analysis",
-      "Community support",
-    ],
-    cta: "Get Started Free",
-    href: "/register",
-    highlighted: false,
-  },
-  {
-    name: "Professional",
-    price: "£149",
-    priceSave: "£119",
-    period: "per month",
-    description: "For growing compliance teams",
-    features: [
-      "Unlimited organisations",
-      "All 5 ISO standards",
-      "Unlimited users",
-      "Full evidence management",
-      "PDF export reports",
-      "Priority support",
-    ],
-    cta: "Start Free Trial",
-    href: "/register",
-    highlighted: true,
-  },
-  {
-    name: "Enterprise",
-    price: "Custom",
-    period: "pricing",
-    description: "For large organisations and consultancies",
-    features: [
-      "Everything in Professional",
-      "SSO / SAML",
-      "Custom integrations",
-      "Dedicated account manager",
-      "SLA guarantee",
-      "On-premises deployment",
-    ],
-    cta: "Contact Sales",
-    href: "/contact",
-    highlighted: false,
-  },
-];
 
 const footerLinks: Record<string, { label: string; href: string }[]> = {
   Product: [
@@ -651,7 +598,7 @@ export default function LandingPage() {
                   size="sm"
                   className="bg-blue-600 hover:bg-blue-500 text-white"
                 >
-                  Get Started Free
+                  Get Started
                 </Button>
               </Link>
             </div>
@@ -698,100 +645,80 @@ export default function LandingPage() {
           }}
         />
 
-        <div className="relative flex-1 flex items-center w-full">
-          <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-0">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-12 items-center w-full">
-
-            {/* ── Left: headline + CTAs ─────────────────────────────── */}
-            <div className="relative z-10 flex flex-col justify-center">
-              {/* Eyebrow */}
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-violet-500/30 bg-violet-500/10 text-violet-300 text-sm font-medium mb-8 w-fit">
-                <Sparkles className="size-4 text-violet-400" />
-                AI-powered · No spreadsheets · No consultants
-              </div>
-
-              {/* Headline */}
-              <h1
-                className="text-5xl md:text-6xl lg:text-[64px] font-bold tracking-tight text-white leading-[1.05] mb-2"
-                style={{ fontFamily: "var(--font-jakarta), sans-serif" }}
-              >
-                ISO Compliance,
-              </h1>
-              <h1
-                className="text-5xl md:text-6xl lg:text-[64px] font-bold tracking-tight leading-[1.05] mb-7"
-                style={{
-                  fontFamily: "var(--font-jakarta), sans-serif",
-                  background: "linear-gradient(90deg, #60a5fa, #a78bfa, #67e8f9, #60a5fa)",
-                  backgroundSize: "200% auto",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  backgroundClip: "text",
-                  animation: "shimmer 3s linear infinite",
-                }}
-              >
-                On Autopilot.
-              </h1>
-
-              {/* Subheading */}
-              <p className="text-lg text-slate-400 mb-8 max-w-lg leading-relaxed">
-                Skip the expensive consultants and endless spreadsheets.
-                ISOComply&apos;s AI maps your controls, auto-generates tasks,
-                and builds your evidence vault — from first gap to audit-ready in weeks.
-              </p>
-              <p className="text-blue-400 text-sm mb-8 min-h-[20px]">
-                <TypewriterText />
-              </p>
-
-              {/* CTAs */}
-              <div className="flex flex-col sm:flex-row items-start gap-3 mb-8">
-                <Link href="/register">
-                  <Button
-                    size="lg"
-                    className="bg-blue-600 hover:bg-blue-500 text-white h-12 px-8 text-base font-semibold"
-                    style={{ animation: "glow-btn 3s ease-in-out infinite" }}
-                  >
-                    Start Free — No Card Needed
-                    <ArrowRight className="ml-2 size-4" />
-                  </Button>
-                </Link>
-                <Link href="/how-it-works">
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="border-slate-600 text-slate-300 hover:bg-white/5 h-12 px-8 text-base"
-                  >
-                    <Play className="mr-2 size-4" />
-                    See How It Works
-                  </Button>
-                </Link>
-              </div>
-
-              {/* Trust badges */}
-              <div className="flex flex-wrap items-center gap-2">
-                {[
-                  { icon: Lock, label: "SOC 2 Type II" },
-                  { icon: ShieldCheck, label: "GDPR Ready" },
-                  { icon: Lock, label: "256-bit Encryption" },
-                  { icon: CheckCircle2, label: "99.9% Uptime" },
-                ].map((badge) => (
-                  <div
-                    key={badge.label}
-                    className="flex items-center gap-1.5 text-xs text-slate-400 bg-white/5 border border-white/10 rounded-full px-3 py-1.5"
-                  >
-                    <badge.icon className="size-3.5 text-blue-400" />
-                    {badge.label}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* ── Right: app screens slideshow ──────────────────────── */}
-            <div className="relative z-10 w-full">
-              <AppScreensSlideshow />
-            </div>
-
+        {/* ── Centered text + CTA ────────────────────────────────────── */}
+        <div className="relative z-10 flex flex-col items-center text-center px-4 sm:px-6 pt-16 pb-10">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-violet-500/30 bg-violet-500/10 text-violet-300 text-sm font-medium mb-7">
+            <Sparkles className="size-4 text-violet-400" />
+            AI-powered · No spreadsheets · No consultants
           </div>
+
+          <h1
+            className="text-5xl md:text-6xl lg:text-[68px] font-bold tracking-tight text-white leading-[1.05] mb-2 max-w-4xl"
+            style={{ fontFamily: "var(--font-jakarta), sans-serif" }}
+          >
+            ISO Compliance,
+          </h1>
+          <h1
+            className="text-5xl md:text-6xl lg:text-[68px] font-bold tracking-tight leading-[1.05] mb-6 max-w-4xl"
+            style={{
+              fontFamily: "var(--font-jakarta), sans-serif",
+              background: "linear-gradient(90deg, #60a5fa, #a78bfa, #67e8f9, #60a5fa)",
+              backgroundSize: "200% auto",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+              animation: "shimmer 3s linear infinite",
+            }}
+          >
+            On Autopilot.
+          </h1>
+
+          <p className="text-lg text-slate-400 mb-3 max-w-2xl leading-relaxed">
+            Skip the expensive consultants and endless spreadsheets.
+            ISOComply&apos;s AI maps your controls, builds your evidence vault,
+            and gets you audit-ready in weeks — not months.
+          </p>
+          <p className="text-blue-400 text-sm mb-8 min-h-[20px]">
+            <TypewriterText />
+          </p>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-8">
+            <Link href="/register">
+              <Button
+                size="lg"
+                className="bg-blue-600 hover:bg-blue-500 text-white h-12 px-8 text-base font-semibold"
+                style={{ animation: "glow-btn 3s ease-in-out infinite" }}
+              >
+                Create Account
+                <ArrowRight className="ml-2 size-4" />
+              </Button>
+            </Link>
+            <Link href="/how-it-works">
+              <Button size="lg" variant="outline" className="border-slate-600 text-slate-300 hover:bg-white/5 h-12 px-8 text-base">
+                <Play className="mr-2 size-4" />
+                See How It Works
+              </Button>
+            </Link>
           </div>
+
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {[
+              { icon: Lock, label: "SOC 2 Type II" },
+              { icon: ShieldCheck, label: "GDPR Ready" },
+              { icon: Lock, label: "256-bit Encryption" },
+              { icon: CheckCircle2, label: "99.9% Uptime" },
+            ].map((badge) => (
+              <div key={badge.label} className="flex items-center gap-1.5 text-xs text-slate-400 bg-white/5 border border-white/10 rounded-full px-3 py-1.5">
+                <badge.icon className="size-3.5 text-blue-400" />
+                {badge.label}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── Wide interactive dashboard ──────────────────────────────── */}
+        <div className="relative z-10 w-full max-w-6xl mx-auto px-4 sm:px-6 pb-0">
+          <HeroDashboard />
         </div>
       </section>
 
@@ -1266,15 +1193,23 @@ export default function LandingPage() {
               }}
             />
             <div className="relative rounded-3xl bg-slate-900 p-12 text-center">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-blue-500/30 bg-blue-500/10 text-blue-300 text-xs font-semibold uppercase tracking-wider mb-6">
+                <ShieldCheck className="size-3.5" />
+                Trusted by 500+ organisations
+              </div>
               <h2
                 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-5"
                 style={{ fontFamily: "var(--font-jakarta), sans-serif" }}
               >
-                Ready to start your ISO readiness journey?
+                Compliance that works as
+                <br />
+                <span style={{ background: "linear-gradient(90deg,#60a5fa,#a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+                  hard as you do
+                </span>
               </h2>
               <p className="text-lg text-slate-400 mb-10 max-w-xl mx-auto">
-                Join 500+ organisations that trust ISOComply to manage their
-                compliance programmes.
+                From first gap assessment to audit day, ISOComply keeps your
+                entire compliance programme on track — automated, auditable, and always up to date.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link href="/register">
@@ -1283,11 +1218,15 @@ export default function LandingPage() {
                     className="bg-blue-600 hover:bg-blue-500 text-white h-12 px-10 text-base font-semibold"
                     style={{ animation: "glow-btn 3s ease-in-out infinite" }}
                   >
-                    Start Free Trial
+                    Create Account
                     <ArrowRight className="ml-2 size-4" />
                   </Button>
                 </Link>
-                <p className="text-sm text-slate-500">No credit card required</p>
+                <Link href="/demo">
+                  <Button size="lg" variant="outline" className="border-slate-600 text-slate-300 hover:bg-white/5 h-12 px-8 text-base">
+                    Book a Demo
+                  </Button>
+                </Link>
               </div>
             </div>
           </div>

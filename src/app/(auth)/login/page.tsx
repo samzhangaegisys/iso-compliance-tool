@@ -11,7 +11,6 @@ import {
   AlertCircle,
   CheckCircle2,
   ArrowRight,
-  Star,
   Smartphone,
   ChevronLeft,
 } from "lucide-react";
@@ -247,11 +246,6 @@ function LoginForm() {
 
         {/* Testimonial */}
         <div className="relative border border-white/10 rounded-2xl p-5 bg-white/[0.03]">
-          <div className="flex gap-0.5 mb-3">
-            {[1, 2, 3, 4, 5].map((s) => (
-              <Star key={s} className="size-3.5 fill-amber-400 text-amber-400" />
-            ))}
-          </div>
           <p className="text-sm text-slate-300 leading-relaxed mb-4">
             &ldquo;ISOComply cut our ISO 27001 certification timeline from 18 months to just 4. The gap analysis alone saved us weeks of spreadsheet work.&rdquo;
           </p>
