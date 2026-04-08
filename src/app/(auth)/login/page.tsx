@@ -219,7 +219,7 @@ export default function LoginPage() {
               </span>
             </h2>
             <p className="text-slate-400 text-sm leading-relaxed max-w-sm">
-              Everything your team needs to achieve ISO certification — gap analysis, evidence management, and audit reports — in one place.
+              Everything your team needs to get ISO audit-ready — gap analysis, evidence management, and audit reports — in one place.
             </p>
           </div>
 

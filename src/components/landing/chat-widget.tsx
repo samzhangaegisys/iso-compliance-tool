@@ -12,12 +12,12 @@ type Message = {
 const FAQ: Record<string, string> = {
   "What ISO standards do you support?":
     "ISOComply supports ISO 27001 (Information Security), ISO 9001 (Quality), ISO 14001 (Environmental), ISO 45001 (Health & Safety), and ISO 42001 (AI Management). You can manage multiple standards simultaneously and spot shared controls.",
-  "Is there a free trial?":
-    "Yes! Our Free plan is available forever with no credit card required — 1 organisation, 1 ISO standard, up to 5 users. Paid plans also come with a 14-day free trial so you can explore the full feature set before committing.",
+  "Is there a free plan?":
+    "Yes! Our Starter plan is free forever — no credit card required. It includes 1 ISO standard, up to 10 users, and full access to gap analysis and the evidence vault. Upgrade to Professional or Enterprise any time from your dashboard.",
   "How long does setup take?":
-    "Most teams are up and running within an hour. You select your ISO standards, import your existing controls (or start fresh), and the gap analysis engine generates your first report immediately. No lengthy onboarding or professional services needed.",
+    "Most teams are up and running within an hour. You select your ISO standards, import your existing controls (or start fresh), and the gap analysis engine generates your first readiness report immediately. No lengthy onboarding or professional services needed.",
   "How is my data secured?":
-    "ISOComply is SOC 2 Type II certified and GDPR ready. All data is encrypted at rest (AES-256) and in transit (TLS 1.3). We operate on AWS infrastructure with 99.9% uptime SLA. You can read our full security documentation at /security.",
+    "ISOComply is SOC 2 Type II certified and GDPR ready. All data is encrypted at rest (AES-256) and in transit (TLS 1.3). We operate on enterprise-grade, ISO 27001-aligned cloud infrastructure with a 99.9% uptime SLA. Full details are available at /security.",
   "Can I manage multiple ISO standards?":
     "Absolutely. Our Professional and Enterprise plans support all 5 ISO standards simultaneously. ISOComply automatically identifies overlapping controls across standards so you don't duplicate work.",
   "What does it cost?":
@@ -27,11 +27,10 @@ const FAQ: Record<string, string> = {
 const QUICK_REPLIES = Object.keys(FAQ).slice(0, 4);
 
 const AGENT = {
-  name: "Emma Clarke",
-  title: "Compliance Specialist",
-  initials: "EC",
-  // pravatar.cc provides consistent, free portrait photos by ID
-  photo: "https://i.pravatar.cc/96?img=47",
+  name: "Emma",
+  title: "AI Compliance Assistant",
+  initials: "E",
+  photo: "https://i.pravatar.cc/96?img=45",
   from: "from-blue-500",
   to: "to-violet-500",
 };
@@ -48,7 +47,7 @@ export function ChatWidget() {
   const [messages, setMessages] = useState<Message[]>([
     newMsg(
       "bot",
-      "Hi there! 👋 I'm here to help with any questions about ISOComply. Feel free to ask anything or pick a question below."
+      "Hi there! 👋 I'm Emma, ISOComply's virtual AI assistant. I can answer questions about our platform, pricing, and ISO standards. For technical or account-specific queries, our team is always happy to help — just ask!"
     ),
   ]);
   const [input, setInput] = useState("");
@@ -110,7 +109,7 @@ export function ChatWidget() {
       <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
         {/* Tooltip bubble */}
         {showBubble && !open && (
-          <div className="bg-white border border-slate-200 rounded-2xl rounded-br-sm shadow-lg px-4 py-3 max-w-[220px] text-sm text-slate-700 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="bg-white border border-slate-200 rounded-2xl rounded-br-sm shadow-lg px-4 py-3 max-w-[230px] text-sm text-slate-700 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <button
               onClick={() => setShowBubble(false)}
               className="absolute top-1.5 right-2 text-slate-400 hover:text-slate-600"
@@ -118,7 +117,7 @@ export function ChatWidget() {
               <X className="size-3" />
             </button>
             <p className="font-medium mb-0.5">Hi, I&apos;m {AGENT.name} 👋</p>
-            <p className="text-xs text-slate-500">Compliance Specialist — ask me anything!</p>
+            <p className="text-xs text-slate-500">Virtual AI assistant — ask me anything about ISOComply!</p>
           </div>
         )}
 
@@ -150,10 +149,13 @@ export function ChatWidget() {
           <div className="bg-blue-600 px-4 py-3.5 flex items-center gap-3 shrink-0">
             <img src={AGENT.photo} alt={AGENT.name} className="size-9 rounded-full object-cover shrink-0 border-2 border-white/20" />
             <div className="flex-1">
-              <p className="text-sm font-semibold text-white">{AGENT.name}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold text-white">{AGENT.name}</p>
+                <span className="text-[9px] font-semibold uppercase tracking-wider bg-white/20 text-white/90 rounded px-1.5 py-0.5">Virtual Agent</span>
+              </div>
               <div className="flex items-center gap-1.5">
                 <span className="size-1.5 rounded-full bg-emerald-400" />
-                <p className="text-xs text-blue-100">{AGENT.title} · Online</p>
+                <p className="text-xs text-blue-100">{AGENT.title}</p>
               </div>
             </div>
           </div>

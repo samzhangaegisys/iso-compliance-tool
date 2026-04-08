@@ -414,7 +414,7 @@ export default function HowItWorksPage() {
               ) : (
                 <Link href="/register"
                   className="flex items-center gap-1.5 px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors text-sm font-semibold">
-                  Start free trial <ArrowRight className="size-4" />
+                  Get Started Free <ArrowRight className="size-4" />
                 </Link>
               )}
             </div>
@@ -429,7 +429,7 @@ export default function HowItWorksPage() {
         <div className="mt-16 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
           <div className="flex flex-wrap justify-center gap-x-8 gap-y-3">
             {[
-              "14-day free trial",
+              "Free Starter plan — forever",
               "No credit card required",
               "Minimum 5 users per plan",
               "Invite your whole team",

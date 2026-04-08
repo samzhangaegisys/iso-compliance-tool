@@ -32,6 +32,8 @@ export default function RegisterPage() {
     orgName: "",
   });
   const [captchaToken, setCaptchaToken] = useState("");
+  const [consentTerms, setConsentTerms] = useState(false);
+  const [consentMarketing, setConsentMarketing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -44,6 +46,10 @@ export default function RegisterPage() {
     setError(null);
     if (!isPasswordStrong(formData.password)) {
       setError("Password does not meet the complexity requirements below.");
+      return;
+    }
+    if (!consentTerms) {
+      setError("You must agree to the Terms of Service and Privacy Policy to continue.");
       return;
     }
     if (!captchaToken) {
@@ -121,7 +127,7 @@ export default function RegisterPage() {
               </span>
             </h2>
             <p className="text-slate-400 text-sm leading-relaxed max-w-sm">
-              Join 500+ organisations already achieving ISO certification faster with ISOComply. No credit card required.
+              Join 500+ organisations already preparing for ISO certification with ISOComply. No credit card required.
             </p>
           </div>
 
@@ -302,12 +308,36 @@ export default function RegisterPage() {
               )}
             </div>
 
-            <p className="text-xs text-slate-400 leading-relaxed">
-              By creating an account you agree to our{" "}
-              <Link href="/terms" className="text-blue-600 hover:text-blue-700">Terms of Service</Link>{" "}
-              and{" "}
-              <Link href="/privacy" className="text-blue-600 hover:text-blue-700">Privacy Policy</Link>.
-            </p>
+            {/* GDPR consent — required */}
+            <label className="flex items-start gap-3 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={consentTerms}
+                onChange={(e) => setConsentTerms(e.target.checked)}
+                className="mt-0.5 size-4 rounded border-slate-300 accent-blue-600 shrink-0"
+                required
+              />
+              <span className="text-xs text-slate-500 leading-relaxed">
+                I have read and agree to the{" "}
+                <Link href="/terms" className="text-blue-600 hover:text-blue-700">Terms of Service</Link>{" "}
+                and{" "}
+                <Link href="/privacy" className="text-blue-600 hover:text-blue-700">Privacy Policy</Link>,
+                and I consent to ISOComply processing my personal data to provide this service. <span className="text-slate-400">(Required)</span>
+              </span>
+            </label>
+
+            {/* Marketing consent — optional, GDPR-compliant */}
+            <label className="flex items-start gap-3 cursor-pointer group">
+              <input
+                type="checkbox"
+                checked={consentMarketing}
+                onChange={(e) => setConsentMarketing(e.target.checked)}
+                className="mt-0.5 size-4 rounded border-slate-300 accent-blue-600 shrink-0"
+              />
+              <span className="text-xs text-slate-500 leading-relaxed">
+                I&apos;d like to receive compliance tips, product updates, and relevant news by email. You can unsubscribe at any time. <span className="text-slate-400">(Optional)</span>
+              </span>
+            </label>
 
             {/* Human verification */}
             <div className="space-y-1.5">

@@ -40,12 +40,12 @@ const sections = [
     icon: Server,
     title: "Infrastructure",
     content:
-      "ISOComply is hosted on AWS across multiple availability zones in the EU (eu-west-2, London) with automated failover. We use isolated VPCs, private subnets, and WAF protection. Data residency in the EU is guaranteed for all customers.",
+      "ISOComply is hosted on enterprise-grade, ISO 27001-aligned cloud infrastructure across multiple availability zones in the EU with automated failover. We use isolated private networking, WAF protection, and strict network segmentation. EU data residency is guaranteed for all customers.",
     bullets: [
-      "AWS EU (London) region",
-      "Multi-AZ deployment",
-      "Isolated VPC networking",
-      "DDoS protection via AWS Shield",
+      "EU data residency guaranteed",
+      "Multi-AZ deployment with auto-failover",
+      "Isolated private networking",
+      "DDoS and WAF protection",
     ],
     color: "text-violet-400",
     bg: "bg-violet-600/10",
