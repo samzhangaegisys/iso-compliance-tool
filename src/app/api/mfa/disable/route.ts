@@ -9,7 +9,7 @@ export async function POST(req: Request) {
   if (!email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { code } = await req.json();
-  const record = getMfaRecord(email);
+  const record = await getMfaRecord(email);
   if (!record?.enabled) {
     return NextResponse.json({ error: "MFA is not enabled." }, { status: 400 });
   }
@@ -20,6 +20,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid code. Please try again." }, { status: 400 });
   }
 
-  disableMfa(email);
+  await disableMfa(email);
   return NextResponse.json({ success: true });
 }

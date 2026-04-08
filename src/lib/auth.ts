@@ -59,7 +59,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!valid) return null;
 
         // Check MFA
-        const mfaRecord = getMfaRecord(user.email);
+        const mfaRecord = await getMfaRecord(user.email);
         if (mfaRecord?.enabled) {
           const totpCode = credentials.totpCode as string | undefined;
           if (!totpCode) return null;

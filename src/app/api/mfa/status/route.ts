@@ -7,6 +7,6 @@ export async function GET() {
   const email = session?.user?.email;
   if (!email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const record = getMfaRecord(email);
+  const record = await getMfaRecord(email);
   return NextResponse.json({ enabled: record?.enabled ?? false });
 }

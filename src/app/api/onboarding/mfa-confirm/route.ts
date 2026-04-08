@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid or expired session." }, { status: 401 });
   }
 
-  const record = getMfaRecord(email);
+  const record = await getMfaRecord(email);
   if (!record?.pendingSecret) {
     return NextResponse.json({ error: "No MFA setup in progress. Please scan the QR code first." }, { status: 400 });
   }
@@ -33,6 +33,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid code. Please try again." }, { status: 400 });
   }
 
-  enableMfa(email);
+  await enableMfa(email);
   return NextResponse.json({ success: true });
 }
