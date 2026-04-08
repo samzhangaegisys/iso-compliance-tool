@@ -27,7 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogoLink } from "@/components/landing/logo-link";
 import { TurnstileWidget } from "@/components/ui/turnstile-widget";
-import { getPasswordChecks, isPasswordStrong } from "@/lib/password";
+import { getPasswordChecks, isPasswordStrong } from "@/lib/password-checks";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

@@ -661,8 +661,8 @@ export default function LandingPage() {
 
       {/* ---- Hero -------------------------------------------------------------------------------------------------------------------------------- */}
       <section
-        className="relative overflow-hidden flex flex-col min-h-[calc(100vh-64px)]"
-        style={{ backgroundColor: "#0a0f1e" }}
+        className="relative flex flex-col min-h-[calc(100dvh-4rem)]"
+        style={{ backgroundColor: "#0a0f1e", overflow: "clip" }}
       >
         {/* Animated blobs */}
         <AnimatedBlob className="w-96 h-96 bg-blue-600/20 top-20 left-1/4" style={{ animationDelay: "0s" }} />
@@ -698,8 +698,9 @@ export default function LandingPage() {
           }}
         />
 
-        <div className="relative flex-1 flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 w-full">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center w-full">
+        <div className="relative flex-1 flex items-center w-full">
+          <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-0">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-12 items-center w-full">
 
             {/* ── Left: headline + CTAs ─────────────────────────────── */}
             <div className="relative z-10 flex flex-col justify-center">
@@ -785,10 +786,11 @@ export default function LandingPage() {
             </div>
 
             {/* ── Right: app screens slideshow ──────────────────────── */}
-            <div className="relative z-10">
+            <div className="relative z-10 w-full">
               <AppScreensSlideshow />
             </div>
 
+          </div>
           </div>
         </div>
       </section>

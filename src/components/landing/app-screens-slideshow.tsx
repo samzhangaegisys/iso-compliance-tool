@@ -338,8 +338,8 @@ export function AppScreensSlideshow() {
           <Bell className="size-3 text-slate-400 shrink-0" />
         </div>
 
-        {/* Screen area */}
-        <div className="relative overflow-hidden" style={{ height: "390px" }}>
+        {/* Screen area — height scales with viewport so it fills the hero column */}
+        <div className="relative overflow-hidden" style={{ height: "clamp(320px, 44vh, 520px)" }}>
           {SCREENS.map(({ Component }, i) => (
             <div
               key={i}
