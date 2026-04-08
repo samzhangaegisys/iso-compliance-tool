@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ShieldCheck,
   Mail,
@@ -85,10 +85,13 @@ function ScoreWidget() {
   );
 }
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<"credentials" | "mfa">("credentials");
-  const [email, setEmail] = useState("");
+  const justRegistered = searchParams.get("registered") === "1";
+  const prefilledEmail = searchParams.get("email") ?? "";
+  const [email, setEmail] = useState(prefilledEmail);
   const [password, setPassword] = useState("");
   const [totpCode, setTotpCode] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
@@ -275,6 +278,13 @@ export default function LoginPage() {
         <div className="w-full max-w-sm">
           {step === "credentials" ? (
             <>
+              {/* Registration success banner */}
+              {justRegistered && (
+                <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-3 text-sm text-emerald-700 mb-5">
+                  <CheckCircle2 className="size-4 shrink-0 mt-0.5" />
+                  <span>Account created! Sign in below to access your workspace.</span>
+                </div>
+              )}
               {/* Heading */}
               <div className="mb-8">
                 <h1 className="text-2xl font-bold text-slate-900 mb-1" style={{ fontFamily: "var(--font-jakarta), sans-serif" }}>
@@ -431,5 +441,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }

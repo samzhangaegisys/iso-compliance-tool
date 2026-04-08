@@ -661,7 +661,7 @@ export default function LandingPage() {
 
       {/* ---- Hero -------------------------------------------------------------------------------------------------------------------------------- */}
       <section
-        className="relative overflow-hidden min-h-[calc(100vh-64px)]"
+        className="relative overflow-hidden flex flex-col min-h-[calc(100vh-64px)]"
         style={{ backgroundColor: "#0a0f1e" }}
       >
         {/* Animated blobs */}
@@ -698,8 +698,8 @@ export default function LandingPage() {
           }}
         />
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-16">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center min-h-[calc(100vh-130px)]">
+        <div className="relative flex-1 flex flex-col justify-center max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center w-full">
 
             {/* ── Left: headline + CTAs ─────────────────────────────── */}
             <div className="relative z-10 flex flex-col justify-center">

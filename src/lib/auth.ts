@@ -4,8 +4,10 @@ import Credentials from "next-auth/providers/credentials";
 import { verifySync } from "otplib";
 import { getMfaRecord } from "./mfa-store";
 import { verifyTurnstile } from "./turnstile";
+import { verifyPassword } from "./password";
+import { getPrisma } from "./prisma";
 
-// Master admin account — full access, bypasses all restrictions
+// Master admin account — internal access only, never exposed to users
 const MASTER_EMAIL    = "admin@isocomply.io";
 const MASTER_PASSWORD = "Admin@ISOComply1!";
 
@@ -26,7 +28,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        // Master admin — full access, skip all other checks
+        // Master admin — internal access only
         if (
           credentials.email === MASTER_EMAIL &&
           credentials.password === MASTER_PASSWORD
@@ -34,29 +36,43 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return { id: "master-admin", email: MASTER_EMAIL, name: "Admin", image: null };
         }
 
-        // Verify CAPTCHA (uses Cloudflare Turnstile; dev test key always passes)
+        // Verify CAPTCHA
         const captchaToken = credentials.captchaToken as string | undefined;
         if (captchaToken) {
           const captchaValid = await verifyTurnstile(captchaToken);
           if (!captchaValid) return null;
         }
 
+        // Look up user in database
+        const prisma = getPrisma();
+        if (!prisma) return null;
+
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email as string },
+        });
+
+        if (!user || !user.passwordHash) return null;
+        if (!user.emailVerified) return null;
+
+        // Verify password
+        const valid = await verifyPassword(credentials.password as string, user.passwordHash);
+        if (!valid) return null;
+
         // Check MFA
-        const mfaRecord = getMfaRecord(credentials.email as string);
+        const mfaRecord = getMfaRecord(user.email);
         if (mfaRecord?.enabled) {
           const totpCode = credentials.totpCode as string | undefined;
           if (!totpCode) return null;
           const result = verifySync({ secret: mfaRecord.secret, token: totpCode });
-          const valid = typeof result === "object" ? result.valid : result;
-          if (!valid) return null;
+          const mfaValid = typeof result === "object" ? result.valid : result;
+          if (!mfaValid) return null;
         }
 
-        // Demo: accept any email/password. Replace with real DB lookup + bcrypt.compare in production.
         return {
-          id: "demo-user-1",
-          email: credentials.email as string,
-          name: "Demo User",
-          image: null,
+          id: user.id,
+          email: user.email,
+          name: user.name ?? "",
+          image: user.avatarUrl ?? null,
         };
       },
     }),

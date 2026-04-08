@@ -1,4 +1,24 @@
 // Password complexity aligned with NIST SP 800-63B, OWASP, and ISO 27001 A.9.4.3
+import { scrypt, randomBytes, timingSafeEqual } from "crypto";
+import { promisify } from "util";
+
+const scryptAsync = promisify(scrypt);
+
+export async function hashPassword(password: string): Promise<string> {
+  const salt = randomBytes(16).toString("hex");
+  const derivedKey = (await scryptAsync(password, salt, 64)) as Buffer;
+  return `${salt}:${derivedKey.toString("hex")}`;
+}
+
+export async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  const [salt, key] = hash.split(":");
+  if (!salt || !key) return false;
+  const derivedKey = (await scryptAsync(password, salt, 64)) as Buffer;
+  const keyBuffer = Buffer.from(key, "hex");
+  if (derivedKey.length !== keyBuffer.length) return false;
+  return timingSafeEqual(derivedKey, keyBuffer);
+}
+
 
 export type PasswordCheck = {
   label: string;
