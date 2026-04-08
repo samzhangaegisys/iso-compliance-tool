@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 import { verifySync } from "otplib";
 import { getMfaRecord, enableMfa } from "@/lib/mfa-store";
-import { getPrisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
-  const prisma = getPrisma();
   if (!prisma) {
     return NextResponse.json({ error: "Database not available" }, { status: 503 });
   }

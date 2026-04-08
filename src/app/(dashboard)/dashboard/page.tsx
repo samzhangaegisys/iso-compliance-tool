@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   TrendingUp,
@@ -12,10 +13,13 @@ import {
   User,
   Activity,
   ListTodo,
+  PartyPopper,
+  X,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useOrg } from "@/lib/org-context";
 
 // ── Data ─────────────────────────────────────────────────────────────────────
 
@@ -168,20 +172,131 @@ function ControlStatusDonut({ implemented, inProgress, notStarted, nonCompliant,
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+const GETTING_STARTED = [
+  { label: "Add your first ISO standard", href: "/standards", done: false },
+  { label: "Create a compliance project",  href: "/projects",  done: false },
+  { label: "Upload your first evidence",   href: "/evidence",  done: false },
+  { label: "Invite a team member",         href: "/team",      done: false },
+  { label: "Run a gap analysis",           href: "/reports",   done: false },
+];
+
+function WelcomeBanner({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div className="rounded-2xl border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-5 relative">
+      <button onClick={onDismiss} className="absolute top-3 right-3 text-slate-400 hover:text-slate-600">
+        <X className="size-4" />
+      </button>
+      <div className="flex items-center gap-3 mb-4">
+        <div className="size-10 rounded-xl bg-blue-600 flex items-center justify-center shrink-0">
+          <PartyPopper className="size-5 text-white" />
+        </div>
+        <div>
+          <h2 className="font-bold text-slate-900 text-base">Welcome to ISOComply!</h2>
+          <p className="text-sm text-slate-600">Your workspace is ready. Here&apos;s how to get started:</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+        {GETTING_STARTED.map((item, i) => (
+          <Link key={item.label} href={item.href}
+            className="flex items-center gap-2.5 rounded-xl border border-blue-200 bg-white hover:border-blue-400 hover:bg-blue-50 transition-all px-3 py-2.5 group">
+            <div className="size-5 rounded-full border-2 border-blue-300 group-hover:border-blue-500 flex items-center justify-center shrink-0 text-[10px] font-bold text-blue-400 group-hover:text-blue-600">
+              {i + 1}
+            </div>
+            <span className="text-xs font-medium text-slate-700 group-hover:text-blue-700 leading-snug">{item.label}</span>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+type ProjectStats = {
+  id: string;
+  standardCode: string;
+  standardName: string;
+  name: string;
+  score: number;
+  implemented: number;
+  inProgress: number;
+  total: number;
+  status: string;
+};
+
 export default function DashboardPage() {
-  const totalScore = Math.round(complianceScores.reduce((s, i) => s + i.score, 0) / complianceScores.length);
-  const totalImplemented = complianceScores.reduce((s, i) => s + i.implemented, 0);
-  const totalControls    = complianceScores.reduce((s, i) => s + i.total, 0);
-  const totalInProgress  = 14; // mock
-  const totalNotStarted  = totalControls - totalImplemented - totalInProgress - 3;
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [projects, setProjects] = useState<ProjectStats[]>([]);
+  const [taskCount, setTaskCount] = useState(0);
+  const [loadingData, setLoadingData] = useState(true);
+  const org = useOrg();
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (localStorage.getItem("isocomply_new_user") === "1") {
+      setShowWelcome(true);
+      return;
+    }
+    if (org?.isNew && !localStorage.getItem("dismissed_welcome")) {
+      setShowWelcome(true);
+    }
+  }, [org]);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/projects").then((r) => r.json()),
+      fetch("/api/tasks").then((r) => r.json()),
+    ]).then(([projData, taskData]) => {
+      setProjects(projData.projects ?? []);
+      setTaskCount((taskData.tasks ?? []).filter((t: { status: string }) => t.status !== "DONE").length);
+      setLoadingData(false);
+    }).catch(() => setLoadingData(false));
+  }, []);
+
+  function dismissWelcome() {
+    setShowWelcome(false);
+    localStorage.removeItem("isocomply_new_user");
+    localStorage.setItem("dismissed_welcome", "1");
+  }
+
+  // Use real project data or fall back to mock for demo if data exists
+  const displayScores = projects.length > 0 ? projects : [];
+  const hasData = projects.length > 0;
+
+  const totalScore = hasData
+    ? Math.round(displayScores.reduce((s, i) => s + i.score, 0) / displayScores.length)
+    : 0;
+  const totalImplemented = displayScores.reduce((s, i) => s + i.implemented, 0);
+  const totalControls    = displayScores.reduce((s, i) => s + i.total, 0);
+  const totalInProgress  = displayScores.reduce((s, i) => s + i.inProgress, 0);
+  const totalNotStarted  = totalControls - totalImplemented - totalInProgress;
 
   return (
     <div className="space-y-6">
+      {/* Welcome banner for first-time users */}
+      {showWelcome && <WelcomeBanner onDismiss={dismissWelcome} />}
+
+      {/* Empty state for new workspaces */}
+      {!loadingData && !hasData && !showWelcome && (
+        <div className="rounded-2xl border-2 border-dashed border-border p-10 text-center">
+          <div className="size-14 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-4">
+            <TrendingUp className="size-7 text-blue-500" />
+          </div>
+          <h2 className="text-lg font-semibold text-foreground mb-1">Your workspace is ready</h2>
+          <p className="text-sm text-muted-foreground mb-5 max-w-sm mx-auto">
+            Start by creating a compliance project for one of the supported ISO standards.
+          </p>
+          <Link href="/projects">
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+              <Plus className="size-4 mr-1.5" />Create your first project
+            </Button>
+          </Link>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">Compliance overview for Acme Ltd</p>
+          <p className="text-sm text-muted-foreground">Compliance overview for {org?.name ?? "your organisation"}</p>
         </div>
         <div className="flex items-center gap-2">
           <Link href="/reports">
@@ -197,44 +312,47 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Top overview: donut + stats + control distribution */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Overall score donut */}
-        <Card className="flex flex-col items-center justify-center py-6">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-4">Overall Compliance Score</p>
-          <div className="relative">
-            <DonutChart score={totalScore} size={120} stroke={12} />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center">
-                <p className={`text-2xl font-bold ${scoreTextColor(totalScore)}`}>{totalScore}%</p>
-                <p className="text-[10px] text-muted-foreground">avg</p>
+      {/* Top overview: donut + stats — only show when org has data */}
+      {hasData && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <Card className="flex flex-col items-center justify-center py-6">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-4">Overall Compliance Score</p>
+            <div className="relative">
+              <DonutChart score={totalScore} size={120} stroke={12} />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center">
+                  <p className={`text-2xl font-bold ${scoreTextColor(totalScore)}`}>{totalScore}%</p>
+                  <p className="text-[10px] text-muted-foreground">avg</p>
+                </div>
               </div>
             </div>
-          </div>
-          <p className="text-xs text-green-600 mt-4 font-medium">+4% this month</p>
-          <div className="flex gap-4 mt-3">
-            {[
-              { label: "Controls met",  value: totalImplemented, color: "text-emerald-600" },
-              { label: "Total controls", value: totalControls,    color: "text-foreground"  },
-            ].map((s) => (
-              <div key={s.label} className="text-center">
-                <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
-                <p className="text-[10px] text-muted-foreground">{s.label}</p>
-              </div>
-            ))}
-          </div>
-        </Card>
+            <div className="flex gap-4 mt-4">
+              {[
+                { label: "Controls met",   value: totalImplemented, color: "text-emerald-600" },
+                { label: "Total controls", value: totalControls,    color: "text-foreground"  },
+              ].map((s) => (
+                <div key={s.label} className="text-center">
+                  <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
+                  <p className="text-[10px] text-muted-foreground">{s.label}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
 
-        {/* Bar chart: compliance by standard */}
-        <Card className="lg:col-span-2 px-6 py-5 flex flex-col">
-          <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-4">Compliance by Standard</p>
-          <div className="flex-1 flex flex-col justify-center">
-            <MiniBarChart
-              scores={complianceScores.map((s) => ({ label: s.standard, value: s.score, color: s.barColor }))}
-            />
-          </div>
-        </Card>
-      </div>
+          <Card className="lg:col-span-2 px-6 py-5 flex flex-col">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium mb-4">Compliance by Standard</p>
+            <div className="flex-1 flex flex-col justify-center">
+              <MiniBarChart
+                scores={displayScores.map((s) => ({
+                  label: s.standardName,
+                  value: s.score,
+                  color: "#3b82f6",
+                }))}
+              />
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Stat cards row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -242,10 +360,8 @@ export default function DashboardPage() {
           <Card className="hover:shadow-md hover:border-blue-200 transition-all cursor-pointer h-full">
             <CardContent className="pt-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Open Tasks</p>
-              <p className="text-3xl font-bold text-foreground mt-1">24</p>
-              <Link href="/tasks?filter=overdue" className="text-xs text-red-600 mt-1 flex items-center gap-1 hover:underline w-fit" onClick={(e) => e.stopPropagation()}>
-                <AlertTriangle className="size-3" /> 3 overdue
-              </Link>
+              <p className="text-3xl font-bold text-foreground mt-1">{taskCount}</p>
+              <p className="text-xs text-muted-foreground mt-1">across all projects</p>
             </CardContent>
           </Card>
         </Link>
@@ -253,100 +369,103 @@ export default function DashboardPage() {
           <Card className="hover:shadow-md hover:border-blue-200 transition-all cursor-pointer h-full">
             <CardContent className="pt-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Evidence Files</p>
-              <p className="text-3xl font-bold text-foreground mt-1">147</p>
-              <p className="text-xs text-muted-foreground mt-1">12 added this week</p>
+              <p className="text-3xl font-bold text-foreground mt-1">0</p>
+              <p className="text-xs text-muted-foreground mt-1">Upload evidence to track</p>
             </CardContent>
           </Card>
         </Link>
         <Card className="h-full">
           <CardContent className="pt-4">
-            <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Active Standards</p>
-            <p className="text-3xl font-bold text-foreground mt-1">5</p>
-            <p className="text-xs text-muted-foreground mt-1">2 near certification</p>
+            <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Active Projects</p>
+            <p className="text-3xl font-bold text-foreground mt-1">{projects.length}</p>
+            <p className="text-xs text-muted-foreground mt-1">{projects.length === 0 ? "Create a project to start" : "compliance projects"}</p>
           </CardContent>
         </Card>
         <Card className="h-full flex flex-col items-center justify-center py-3 gap-2">
           <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Control Status</p>
-          <div className="relative">
-            <ControlStatusDonut
-              implemented={totalImplemented}
-              inProgress={totalInProgress}
-              notStarted={totalNotStarted}
-              nonCompliant={3}
-              total={totalControls}
-              size={64}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
-            {[
-              { label: "Done",   color: "bg-emerald-500", value: totalImplemented },
-              { label: "Active", color: "bg-blue-500",    value: totalInProgress  },
-              { label: "To do",  color: "bg-slate-300",   value: totalNotStarted  },
-              { label: "Issues", color: "bg-red-500",     value: 3                },
-            ].map((s) => (
-              <div key={s.label} className="flex items-center gap-1">
-                <div className={`size-1.5 rounded-full shrink-0 ${s.color}`} />
-                <span className="text-[9px] text-muted-foreground">{s.label} {s.value}</span>
+          {hasData ? (
+            <>
+              <div className="relative">
+                <ControlStatusDonut
+                  implemented={totalImplemented}
+                  inProgress={totalInProgress}
+                  notStarted={totalNotStarted}
+                  nonCompliant={0}
+                  total={totalControls}
+                  size={64}
+                />
               </div>
-            ))}
-          </div>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                {[
+                  { label: "Done",   color: "bg-emerald-500", value: totalImplemented },
+                  { label: "Active", color: "bg-blue-500",    value: totalInProgress  },
+                  { label: "To do",  color: "bg-slate-300",   value: totalNotStarted  },
+                ].map((s) => (
+                  <div key={s.label} className="flex items-center gap-1">
+                    <div className={`size-1.5 rounded-full shrink-0 ${s.color}`} />
+                    <span className="text-[9px] text-muted-foreground">{s.label} {s.value}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="text-xs text-muted-foreground text-center px-2">No controls yet — create a project first</p>
+          )}
         </Card>
       </div>
 
-      {/* Compliance by Standard — cards with donut + progress */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-semibold text-foreground">Standards — click to explore</h2>
-          <Link href="/projects" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
-            All projects <ArrowRight className="size-3" />
-          </Link>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {complianceScores.map((item) => (
-            <Link key={item.code} href={item.href} className="block group">
-              <Card className="hover:shadow-md hover:border-blue-200 transition-all cursor-pointer h-full">
-                <CardContent className="pt-4 pb-4">
-                  <div className="flex items-start gap-3">
-                    {/* Mini donut */}
-                    <div className="relative shrink-0">
-                      <DonutChart score={item.score} size={56} stroke={6} />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className={`text-[10px] font-bold ${scoreTextColor(item.score)}`}>{item.score}%</span>
-                      </div>
-                    </div>
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-1 mb-1">
-                        <p className="text-sm font-semibold text-foreground group-hover:text-blue-600 transition-colors leading-snug">
-                          {item.standard}
-                        </p>
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ${statusColors[item.status] ?? "bg-slate-100 text-slate-700"}`}>
-                          {item.status}
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground mb-2">{item.implemented}/{item.total} controls</p>
-                      {/* Progress bar */}
-                      <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
-                        <div className={`h-full ${scoreColor(item.score)} rounded-full transition-all duration-500`}
-                          style={{ width: `${item.score}%` }} />
-                      </div>
-                      <div className="flex items-center justify-between mt-1.5">
-                        <span className="text-[10px] text-muted-foreground">{item.trend} this month</span>
-                        <span className="text-[10px] text-blue-600 flex items-center gap-0.5 group-hover:underline">
-                          Explore <ArrowRight className="size-2.5" />
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+      {/* Compliance by Standard — only show if there are projects */}
+      {displayScores.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-semibold text-foreground">Standards — click to explore</h2>
+            <Link href="/projects" className="text-xs text-blue-600 hover:underline flex items-center gap-1">
+              All projects <ArrowRight className="size-3" />
             </Link>
-          ))}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            {displayScores.map((item) => (
+              <Link key={item.id} href={`/projects?id=${item.id}`} className="block group">
+                <Card className="hover:shadow-md hover:border-blue-200 transition-all cursor-pointer h-full">
+                  <CardContent className="pt-4 pb-4">
+                    <div className="flex items-start gap-3">
+                      <div className="relative shrink-0">
+                        <DonutChart score={item.score} size={56} stroke={6} />
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className={`text-[10px] font-bold ${scoreTextColor(item.score)}`}>{item.score}%</span>
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-1 mb-1">
+                          <p className="text-sm font-semibold text-foreground group-hover:text-blue-600 transition-colors leading-snug">
+                            {item.standardName}
+                          </p>
+                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full shrink-0 ${statusColors[item.status] ?? "bg-slate-100 text-slate-700"}`}>
+                            {item.status}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-2">{item.implemented}/{item.total} controls</p>
+                        <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                          <div className={`h-full ${scoreColor(item.score)} rounded-full transition-all duration-500`}
+                            style={{ width: `${item.score}%` }} />
+                        </div>
+                        <div className="flex items-center justify-end mt-1.5">
+                          <span className="text-[10px] text-blue-600 flex items-center gap-0.5 group-hover:underline">
+                            Explore <ArrowRight className="size-2.5" />
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Activity & Tasks */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Activity & Tasks — only show when org has projects */}
+      {hasData && <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Activity */}
         <Card>
           <CardHeader>
@@ -473,7 +592,7 @@ export default function DashboardPage() {
             </ul>
           </CardContent>
         </Card>
-      </div>
+      </div>}
 
       {/* Quick Actions */}
       <Card>

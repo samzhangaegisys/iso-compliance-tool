@@ -1,3 +1,5 @@
+"use client";
+
 import { Building2, Shield, CreditCard } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,8 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { MFASection } from "@/components/dashboard/mfa-section";
+import { useOrg } from "@/lib/org-context";
 
 export default function SettingsPage() {
+  const org = useOrg();
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
@@ -27,11 +31,11 @@ export default function SettingsPage() {
         <CardContent className="space-y-4">
           <div className="space-y-1.5">
             <Label>Organisation name</Label>
-            <Input defaultValue="Acme Ltd" />
+            <Input defaultValue={org?.name ?? ""} key={org?.name} />
           </div>
           <div className="space-y-1.5">
             <Label>Slug</Label>
-            <Input defaultValue="acme-ltd" />
+            <Input defaultValue={org?.slug ?? ""} key={org?.slug} />
           </div>
           <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">Save changes</Button>
         </CardContent>
@@ -49,14 +53,22 @@ export default function SettingsPage() {
         <CardContent>
           <div className="flex items-center justify-between p-3 rounded-lg border border-border bg-muted/30">
             <div>
-              <p className="text-sm font-semibold">Free Plan</p>
-              <p className="text-xs text-muted-foreground">1 standard, up to 5 users</p>
+              <p className="text-sm font-semibold capitalize">{org?.plan ?? "Starter"} Plan</p>
+              <p className="text-xs text-muted-foreground">
+                {org?.plan === "enterprise"
+                  ? "Unlimited standards & users"
+                  : org?.plan === "professional"
+                    ? "All 5 standards · up to 20 users"
+                    : "1 ISO standard · up to 5 users"}
+              </p>
             </div>
-            <Badge>Free</Badge>
+            <Badge className="capitalize">{org?.plan ?? "Starter"}</Badge>
           </div>
-          <Button variant="outline" size="sm" className="mt-3">
-            Upgrade to Professional
-          </Button>
+          {org?.plan !== "enterprise" && (
+            <Button variant="outline" size="sm" className="mt-3">
+              Upgrade Plan
+            </Button>
+          )}
         </CardContent>
       </Card>
 

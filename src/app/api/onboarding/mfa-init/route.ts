@@ -2,10 +2,9 @@ import { NextResponse } from "next/server";
 import { generateSecret, generateURI } from "otplib";
 import QRCode from "qrcode";
 import { setPendingSecret } from "@/lib/mfa-store";
-import { getPrisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(req: Request) {
-  const prisma = getPrisma();
   if (!prisma) {
     return NextResponse.json({ error: "Database not available" }, { status: 503 });
   }

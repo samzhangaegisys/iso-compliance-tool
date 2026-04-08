@@ -112,6 +112,13 @@ function fakeMime(name: string) {
 
 // ── Seed data ─────────────────────────────────────────────────────────────────
 
+// Status map from DB enum to local UI status
+const DB_STATUS_MAP: Record<string, Status> = {
+  TODO:        "Todo",
+  IN_PROGRESS: "In Progress",
+  DONE:        "Done",
+};
+
 const seedTasks: TaskItem[] = [
   {
     id: "1", title: "Complete risk assessment documentation", standard: "ISO 27001", control: "6.1.2",
@@ -1346,7 +1353,8 @@ function TasksPageInner() {
   const highlightId  = searchParams.get("id");
   const filterParam  = searchParams.get("filter");
 
-  const [tasks,         setTasks]         = useState<TaskItem[]>(seedTasks);
+  const [tasks,         setTasks]         = useState<TaskItem[]>([]);
+  const [loadingTasks,  setLoadingTasks]  = useState(true);
   const [selectedId,    setSelectedId]    = useState<string | null>(highlightId);
   const [stdFilter,     setStdFilter]     = useState("All");
   const [overdueOnly,   setOverdueOnly]   = useState(filterParam === "overdue");
@@ -1354,6 +1362,68 @@ function TasksPageInner() {
   const [draggingId,    setDraggingId]    = useState<string | null>(null);
   const [dragOverCol,   setDragOverCol]   = useState<Status | null>(null);
   const [approvalFor,   setApprovalFor]   = useState<{ taskId: string; toStatus: Status } | null>(null);
+
+  // Resizable panel state
+  const [panelWidth,    setPanelWidth]    = useState(420);
+  const isDragging = useRef(false);
+  const dragStartX = useRef(0);
+  const dragStartW = useRef(420);
+
+  const onPanelResizeStart = useCallback((e: React.MouseEvent) => {
+    isDragging.current = true;
+    dragStartX.current = e.clientX;
+    dragStartW.current = panelWidth;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    function onMove(ev: MouseEvent) {
+      if (!isDragging.current) return;
+      const delta = dragStartX.current - ev.clientX;
+      setPanelWidth(Math.min(Math.max(dragStartW.current + delta, 300), 800));
+    }
+    function onUp() {
+      isDragging.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    }
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, [panelWidth]);
+
+  useEffect(() => {
+    fetch("/api/tasks")
+      .then((r) => r.json())
+      .then((data) => {
+        const mapped: TaskItem[] = (data.tasks ?? []).map((t: {
+          id: string; title: string; description: string; status: string;
+          priority: string; dueDate: string | null; assigneeName: string;
+          controlRef: string; standard: string; projectName: string; createdAt: string;
+        }) => ({
+          id: t.id,
+          title: t.title,
+          standard: t.standard,
+          control: t.controlRef,
+          dueDate: t.dueDate ? t.dueDate.slice(0, 10) : "",
+          priority: (["CRITICAL","HIGH","MEDIUM","LOW"].includes(t.priority) ? t.priority : "MEDIUM") as Priority,
+          assignee: t.assigneeName,
+          assigneeInitials: t.assigneeName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase(),
+          assigneeColor: "bg-blue-500",
+          status: DB_STATUS_MAP[t.status] ?? "Todo",
+          description: t.description,
+          subtasks: [],
+          comments: [],
+          attachments: [],
+          createdBy: "",
+          createdDate: t.createdAt.slice(0, 10),
+          watchers: [],
+        }));
+        setTasks(mapped);
+        setLoadingTasks(false);
+      })
+      .catch(() => setLoadingTasks(false));
+  }, []);
 
   const selectedTask = tasks.find((t) => t.id === selectedId) ?? null;
   const overdueCount = tasks.filter(isTaskOverdue).length;
@@ -1454,6 +1524,25 @@ function TasksPageInner() {
         </div>
 
         {/* ── Board + detail ────────────────────────────────────── */}
+        {loadingTasks ? (
+          <div className="flex flex-1 items-center justify-center text-muted-foreground">
+            <div className="text-center">
+              <div className="size-8 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin mx-auto mb-3" />
+              <p className="text-sm">Loading tasks…</p>
+            </div>
+          </div>
+        ) : tasks.length === 0 ? (
+          <div className="flex flex-1 items-center justify-center">
+            <div className="text-center max-w-xs">
+              <ListTodo className="size-12 mx-auto mb-3 text-muted-foreground/30" />
+              <h3 className="text-base font-semibold text-foreground mb-1">No tasks yet</h3>
+              <p className="text-sm text-muted-foreground mb-4">Tasks are created from compliance projects. Start a project to generate tasks.</p>
+              <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setShowAddModal(true)}>
+                <Plus className="size-3.5 mr-1" /> Create task manually
+              </Button>
+            </div>
+          </div>
+        ) : (
         <div className="flex flex-1 overflow-hidden">
           {/* Kanban board */}
           <div className={`flex gap-4 overflow-x-auto p-5 flex-1 min-w-0 transition-all duration-200`}>
@@ -1505,7 +1594,16 @@ function TasksPageInner() {
 
           {/* Detail panel */}
           {selectedTask ? (
-            <div className="w-[420px] shrink-0 border-l border-border overflow-hidden animate-in slide-in-from-right-4 duration-200">
+            <div
+              className="shrink-0 border-l border-border overflow-hidden animate-in slide-in-from-right-4 duration-200 relative"
+              style={{ width: panelWidth }}
+            >
+              {/* Resize handle */}
+              <div
+                onMouseDown={onPanelResizeStart}
+                className="absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize z-10 hover:bg-blue-400/40 active:bg-blue-500/60 transition-colors"
+                title="Drag to resize"
+              />
               <TaskDetail
                 key={selectedTask.id}
                 task={selectedTask}
@@ -1523,6 +1621,7 @@ function TasksPageInner() {
             </div>
           )}
         </div>
+        )}
       </div>
     </>
   );

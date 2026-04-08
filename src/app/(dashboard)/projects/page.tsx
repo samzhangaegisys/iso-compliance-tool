@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Plus, Calendar, ArrowRight, FolderOpen, CheckCircle2, Clock,
   PauseCircle, Archive, X, ChevronRight, ChevronDown, Target,
   ShieldCheck, FileCheck2, BarChart3, ListTodo, Search, Lightbulb,
   Building2, Code2, ClipboardList, TrendingUp, Users, BookOpen,
-  AlertTriangle, Rocket, Check,
+  AlertTriangle, Rocket, Check, LayoutGrid, GanttChart as GanttChartIcon,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,53 +21,20 @@ type ProjectStatus = "ACTIVE" | "PAUSED" | "COMPLETED" | "ARCHIVED";
 interface Project {
   id: string;
   name: string;
+  description?: string;
   standard: string;
   standardCode: string;
   status: ProjectStatus;
   score: number;
   implemented: number;
   total: number;
+  startDate: string;
   targetDate: string;
   lastUpdated: string;
   owner: string;
   phase: number; // 1–6
   nextAction: string;
 }
-
-// ── Seed data ─────────────────────────────────────────────────────────────────
-
-const initialProjects: Project[] = [
-  {
-    id: "proj-1", name: "ISO 27001 Certification 2026", standard: "ISO/IEC 27001:2022", standardCode: "ISO27001",
-    status: "ACTIVE", score: 68, implemented: 63, total: 93, targetDate: "2026-09-30",
-    lastUpdated: "2 hours ago", owner: "Sarah K.", phase: 3,
-    nextAction: "Complete risk assessment documentation",
-  },
-  {
-    id: "proj-2", name: "Quality Management Programme", standard: "ISO 9001:2015", standardCode: "ISO9001",
-    status: "ACTIVE", score: 84, implemented: 71, total: 85, targetDate: "2026-06-15",
-    lastUpdated: "Yesterday", owner: "James O.", phase: 4,
-    nextAction: "Conduct internal audit for clause 9.2",
-  },
-  {
-    id: "proj-3", name: "Environmental Compliance Initiative", standard: "ISO 14001:2015", standardCode: "ISO14001",
-    status: "PAUSED", score: 42, implemented: 26, total: 62, targetDate: "2026-12-31",
-    lastUpdated: "1 week ago", owner: "Tom R.", phase: 2,
-    nextAction: "Resume gap analysis — 20 controls not yet assessed",
-  },
-  {
-    id: "proj-4", name: "OH&S Certification Renewal", standard: "ISO 45001:2018", standardCode: "ISO45001",
-    status: "COMPLETED", score: 91, implemented: 67, total: 74, targetDate: "2026-03-01",
-    lastUpdated: "3 weeks ago", owner: "Sarah K.", phase: 6,
-    nextAction: "Schedule next surveillance audit",
-  },
-  {
-    id: "proj-5", name: "AI Governance Framework", standard: "ISO/IEC 42001:2023", standardCode: "ISO42001",
-    status: "ACTIVE", score: 23, implemented: 13, total: 58, targetDate: "2027-03-31",
-    lastUpdated: "5 days ago", owner: "Admin", phase: 2,
-    nextAction: "Document all in-scope AI systems",
-  },
-];
 
 // ── Standards catalogue (for new project modal) ────────────────────────────────
 
@@ -113,8 +80,6 @@ const STANDARDS_CATALOGUE = [
     popular: false,
   },
 ];
-
-const TEAM_MEMBERS = ["Sarah K.", "James O.", "Tom R.", "Admin"];
 
 // ── Journey phases ─────────────────────────────────────────────────────────────
 
@@ -190,49 +155,246 @@ function RingChart({ score, size = 64, stroke = 7, color }: { score: number; siz
   );
 }
 
+// ── Gantt colors ──────────────────────────────────────────────────────────────
+
+const STD_COLORS: Record<string, string> = {
+  ISO27001: "#3b82f6",
+  ISO9001:  "#22c55e",
+  ISO14001: "#10b981",
+  ISO45001: "#f59e0b",
+  ISO42001: "#a855f7",
+};
+
+// ── Gantt view ────────────────────────────────────────────────────────────────
+
+function GanttView({ projects }: { projects: Project[] }) {
+  if (projects.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-48 text-muted-foreground">
+        <p className="text-sm">No projects to display</p>
+      </div>
+    );
+  }
+
+  const today = new Date();
+
+  // Build date range: min startDate → max targetDate, minimum 6 months span
+  const starts = projects.map((p) => new Date(p.startDate || today));
+  const ends   = projects.map((p) =>
+    p.targetDate && p.targetDate !== "Not set"
+      ? new Date(p.targetDate)
+      : new Date(today.getFullYear() + 1, today.getMonth(), today.getDate())
+  );
+
+  let minDate = new Date(Math.min(...starts.map((d) => d.getTime())));
+  let maxDate = new Date(Math.max(...ends.map((d) => d.getTime())));
+
+  // Snap to start of month / end of month
+  minDate = new Date(minDate.getFullYear(), minDate.getMonth(), 1);
+  maxDate = new Date(maxDate.getFullYear(), maxDate.getMonth() + 1, 0);
+
+  // Ensure at least 6 months range
+  const sixMonthsLater = new Date(minDate.getFullYear(), minDate.getMonth() + 6, 1);
+  if (maxDate < sixMonthsLater) maxDate = sixMonthsLater;
+
+  const totalMs = maxDate.getTime() - minDate.getTime();
+
+  function pct(date: Date) {
+    return Math.max(0, Math.min(100, ((date.getTime() - minDate.getTime()) / totalMs) * 100));
+  }
+
+  // Generate month labels
+  const months: { label: string; left: number }[] = [];
+  const cur = new Date(minDate);
+  while (cur <= maxDate) {
+    months.push({
+      label: cur.toLocaleDateString("en-AU", { month: "short", year: "2-digit" }),
+      left: pct(cur),
+    });
+    cur.setMonth(cur.getMonth() + 1);
+  }
+
+  const todayPct = pct(today);
+
+  const ROW_HEIGHT = 52;
+
+  return (
+    <div className="border border-border rounded-xl overflow-hidden bg-background">
+      <div className="overflow-x-auto">
+        <div style={{ minWidth: 700 }}>
+          {/* Month header */}
+          <div className="relative h-8 border-b border-border bg-muted/40 ml-48">
+            {months.map((m) => (
+              <div key={m.label + m.left} className="absolute top-0 h-full flex items-center" style={{ left: `${m.left}%` }}>
+                <div className="w-px h-full bg-border" />
+                <span className="text-[10px] text-muted-foreground font-medium ml-1.5 whitespace-nowrap">{m.label}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Project rows */}
+          {projects.map((project, i) => {
+            const start = new Date(project.startDate || today);
+            const end   = project.targetDate && project.targetDate !== "Not set"
+              ? new Date(project.targetDate)
+              : new Date(today.getFullYear() + 1, today.getMonth(), today.getDate());
+
+            const barLeft  = pct(start);
+            const barRight = pct(end);
+            const barWidth = Math.max(barRight - barLeft, 2);
+            const color = STD_COLORS[project.standardCode] ?? "#64748b";
+
+            return (
+              <div key={project.id}
+                className={`flex items-center border-b border-border ${i % 2 === 0 ? "bg-background" : "bg-muted/20"}`}
+                style={{ height: ROW_HEIGHT }}>
+                {/* Label */}
+                <div className="w-48 shrink-0 px-3 flex flex-col justify-center border-r border-border">
+                  <p className="text-xs font-semibold text-foreground truncate">{project.name}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">{project.standardCode}</p>
+                </div>
+
+                {/* Bar area */}
+                <div className="flex-1 relative" style={{ height: ROW_HEIGHT }}>
+                  {/* Today line */}
+                  {todayPct >= 0 && todayPct <= 100 && (
+                    <div className="absolute top-0 bottom-0 w-px bg-red-400/60 z-10" style={{ left: `${todayPct}%` }} />
+                  )}
+
+                  {/* Grid lines */}
+                  {months.map((m) => (
+                    <div key={m.label + m.left} className="absolute top-0 bottom-0 w-px bg-border/40" style={{ left: `${m.left}%` }} />
+                  ))}
+
+                  {/* Progress bar */}
+                  <div
+                    className="absolute top-1/2 -translate-y-1/2 rounded-full overflow-hidden"
+                    style={{ left: `${barLeft}%`, width: `${barWidth}%`, height: 20 }}
+                  >
+                    {/* Background */}
+                    <div className="absolute inset-0 rounded-full opacity-20" style={{ backgroundColor: color }} />
+                    {/* Fill by score */}
+                    <div
+                      className="absolute inset-y-0 left-0 rounded-full"
+                      style={{ backgroundColor: color, width: `${project.score}%`, opacity: 0.85 }}
+                    />
+                    {/* Score label */}
+                    <div className="absolute inset-0 flex items-center px-2">
+                      <span className="text-[9px] font-bold text-white drop-shadow-sm whitespace-nowrap">
+                        {project.score}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Target date marker */}
+                  <div
+                    className="absolute top-1/2 -translate-y-1/2 size-3 rounded-full border-2 border-white shadow-sm z-10"
+                    style={{ left: `${barRight}%`, backgroundColor: color, transform: "translate(-50%, -50%)" }}
+                    title={`Target: ${project.targetDate}`}
+                  />
+                </div>
+
+                {/* Score */}
+                <div className="w-14 shrink-0 text-right pr-3">
+                  <span className="text-xs font-bold" style={{ color }}>{project.score}%</span>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Today legend */}
+          <div className="flex items-center gap-4 px-3 py-2 bg-muted/20 border-t border-border">
+            <div className="flex items-center gap-1.5">
+              <div className="w-px h-3 bg-red-400" />
+              <span className="text-[10px] text-muted-foreground">Today</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="size-2.5 rounded-full bg-blue-400/30 border border-blue-400" />
+              <span className="text-[10px] text-muted-foreground">Target date</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="h-3 w-8 rounded-full bg-blue-500" />
+              <span className="text-[10px] text-muted-foreground">Progress (% compliant)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── New Project Modal ─────────────────────────────────────────────────────────
 
 function NewProjectModal({ onClose, onAdd }: {
   onClose: () => void;
-  onAdd: (p: Project) => void;
+  onAdd: (p: unknown) => void;
 }) {
   const { plan: MOCK_PLAN } = usePlan();
   const [step, setStep]     = useState<1 | 2>(1);
   const [chosen, setChosen] = useState<string | null>(null);
-  const [form, setForm]     = useState({ name: "", targetDate: "", owner: "Admin", scope: "" });
+  const [form, setForm]     = useState({
+    name: "",
+    description: "",
+    startDate: new Date().toISOString().slice(0, 10),
+    targetDate: "",
+    leadUserId: "",
+  });
+  const [teamMembers, setTeamMembers] = useState<{ id: string; userId: string; name: string; email: string; role: string }[]>([]);
+  const [saving, setSaving]           = useState(false);
+  const [saveError, setSaveError]     = useState("");
+
+  useEffect(() => {
+    fetch("/api/team")
+      .then((r) => r.json())
+      .then((data) => setTeamMembers(data.members ?? []))
+      .catch(() => {});
+  }, []);
 
   const std = STANDARDS_CATALOGUE.find((s) => s.code === chosen);
 
-  function set<K extends keyof typeof form>(k: K, v: string) {
+  function setField<K extends keyof typeof form>(k: K, v: string) {
     setForm((p) => ({ ...p, [k]: v }));
   }
 
   function pickStandard(code: string) {
     setChosen(code);
-    const s = STANDARDS_CATALOGUE.find((x) => x.code === code)!;
-    const yr = new Date().getFullYear() + 1;
-    setForm((p) => ({ ...p, name: `${s.short} Certification ${yr}` }));
+    setForm((p) => ({ ...p, name: "" }));
+    setStep(2);
   }
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!chosen || !form.name.trim()) return;
-    const s = STANDARDS_CATALOGUE.find((x) => x.code === chosen)!;
-    onAdd({
-      id: `proj-${Date.now()}`,
-      name: form.name,
-      standard: s.name,
-      standardCode: s.code,
-      status: "ACTIVE",
-      score: 0,
-      implemented: 0,
-      total: s.controls,
-      targetDate: form.targetDate || `${new Date().getFullYear() + 1}-06-30`,
-      lastUpdated: "Just now",
-      owner: form.owner,
-      phase: 1,
-      nextAction: "Run your first gap analysis",
-    });
+    setSaveError("");
+    if (!chosen) return;
+    if (!form.name.trim()) { setSaveError("Project name is required."); return; }
+    if (!form.leadUserId) { setSaveError("Please select a project lead."); return; }
+    setSaving(true);
+    try {
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          standardCode: chosen,
+          name: form.name.trim(),
+          description: form.description.trim() || null,
+          startDate: form.startDate,
+          targetDate: form.targetDate || null,
+          leadUserId: form.leadUserId,
+        }),
+      });
+      let data: Record<string, unknown> = {};
+      try { data = await res.json(); } catch { /* non-JSON response */ }
+      if (!res.ok || data.error) {
+        setSaveError((data.error as string) || `Server error (${res.status}) — please try again.`);
+      } else if (data.project) {
+        onAdd(data.project);
+      }
+    } catch (err) {
+      setSaveError("Network error — please check your connection and try again.");
+      console.error("Project create error:", err);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -309,12 +471,6 @@ function NewProjectModal({ onClose, onAdd }: {
                 );
               })}
             </div>
-            <div className="flex justify-end mt-4">
-              <Button size="sm" disabled={!chosen} onClick={() => setStep(2)}
-                className="bg-blue-600 hover:bg-blue-700 text-white">
-                Continue <ChevronRight className="size-3.5 ml-1" />
-              </Button>
-            </div>
           </div>
         )}
 
@@ -333,35 +489,56 @@ function NewProjectModal({ onClose, onAdd }: {
               <button type="button" onClick={() => setStep(1)} className="text-xs text-blue-600 hover:underline shrink-0">Change</button>
             </div>
 
+            {/* Project name */}
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-foreground">Project name <span className="text-red-500">*</span></label>
-              <input value={form.name} onChange={(e) => set("name", e.target.value)} required autoFocus
-                className="w-full text-sm bg-muted border border-border rounded-lg px-3 py-2 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100" />
+              <input value={form.name} onChange={(e) => setField("name", e.target.value)} required autoFocus
+                placeholder="e.g. ISO 27001 Certification 2027"
+                className="w-full text-sm bg-muted border border-border rounded-lg px-3 py-2 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 placeholder:text-muted-foreground" />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-foreground">Target certification date</label>
-                <input type="date" value={form.targetDate} onChange={(e) => set("targetDate", e.target.value)}
+                <label className="text-xs font-medium text-foreground">Start date <span className="text-red-500">*</span></label>
+                <input type="date" value={form.startDate} onChange={(e) => setField("startDate", e.target.value)} required
                   className="w-full text-sm bg-muted border border-border rounded-lg px-3 py-2 outline-none focus:border-blue-400" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-foreground">Project lead</label>
-                <select value={form.owner} onChange={(e) => set("owner", e.target.value)}
-                  className="w-full text-sm bg-muted border border-border rounded-lg px-3 py-2 outline-none focus:border-blue-400 cursor-pointer">
-                  {TEAM_MEMBERS.map((m) => <option key={m}>{m}</option>)}
-                </select>
+                <label className="text-xs font-medium text-foreground">Target certification date</label>
+                <input type="date" value={form.targetDate} onChange={(e) => setField("targetDate", e.target.value)}
+                  className="w-full text-sm bg-muted border border-border rounded-lg px-3 py-2 outline-none focus:border-blue-400" />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-foreground">Scope description <span className="text-muted-foreground font-normal">(optional)</span></label>
-              <textarea value={form.scope} onChange={(e) => set("scope", e.target.value)} rows={3}
+              <label className="text-xs font-medium text-foreground">Project lead <span className="text-red-500">*</span></label>
+              <select value={form.leadUserId} onChange={(e) => setField("leadUserId", e.target.value)}
+                className="w-full text-sm bg-muted border border-border rounded-lg px-3 py-2 outline-none focus:border-blue-400 cursor-pointer">
+                <option value="">Select a team member…</option>
+                {teamMembers.map((m) => (
+                  <option key={m.userId} value={m.userId}>{m.name}</option>
+                ))}
+              </select>
+              {teamMembers.length === 0 && (
+                <p className="text-[11px] text-amber-600">No team members found. You will be set as lead.</p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground">
+                Description <span className="text-muted-foreground font-normal">(optional)</span>
+              </label>
+              <textarea value={form.description} onChange={(e) => setField("description", e.target.value)} rows={3}
                 placeholder="e.g. All IT systems and personnel at Sydney HQ involved in customer data processing."
                 className="w-full text-sm bg-muted border border-border rounded-lg px-3 py-2 outline-none focus:border-blue-400 placeholder:text-muted-foreground resize-none" />
             </div>
 
-            {/* Role tip */}
+            {/* Error message */}
+            {saveError && (
+              <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{saveError}</p>
+            )}
+
+            {/* Tip */}
             <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 flex gap-3">
               <Lightbulb className="size-4 text-blue-500 shrink-0 mt-0.5" />
               <div>
@@ -374,8 +551,8 @@ function NewProjectModal({ onClose, onAdd }: {
 
             <div className="flex gap-2 pt-1">
               <Button type="button" variant="outline" size="sm" className="flex-1" onClick={() => setStep(1)}>Back</Button>
-              <Button type="submit" size="sm" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
-                <Rocket className="size-3.5 mr-1.5" /> Create Project
+              <Button type="submit" size="sm" disabled={saving} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
+                {saving ? "Saving…" : <><Rocket className="size-3.5 mr-1.5" /> Create Project</>}
               </Button>
             </div>
           </form>
@@ -693,21 +870,65 @@ function EmptyState({ onNew }: { onNew: () => void }) {
   );
 }
 
+// ── Mapping helper ────────────────────────────────────────────────────────────
+
+function mapApiProject(p: {
+  id: string; name: string; description?: string; standardCode: string; standardName: string;
+  status: string; score: number; implemented: number; total: number;
+  targetDate: string | null; startDate: string | null; createdAt: string;
+  leadUserId?: string | null;
+}): Project {
+  return {
+    id: p.id,
+    name: p.name,
+    description: p.description ?? "",
+    standard: p.standardName,
+    standardCode: p.standardCode,
+    status: p.status as Project["status"],
+    score: p.score,
+    implemented: p.implemented,
+    total: p.total,
+    startDate: p.startDate ? new Date(p.startDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+    targetDate: p.targetDate ? new Date(p.targetDate).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }) : "Not set",
+    owner: "",
+    lastUpdated: new Date(p.createdAt).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }),
+    phase: 1,
+    nextAction: "",
+  };
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
-
-
 
 export default function ProjectsPage() {
   const { plan: MOCK_PLAN } = usePlan();
-  const [projects, setProjects]     = useState<Project[]>(initialProjects);
-  const [showModal, setShowModal] = useState(false);
+  const [projects, setProjects]           = useState<Project[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(true);
+  const [showModal, setShowModal]         = useState(false);
+  const [viewMode, setViewMode]           = useState<"cards" | "gantt">("cards");
+
+  async function loadProjects() {
+    setLoadingProjects(true);
+    try {
+      const res  = await fetch("/api/projects");
+      const data = await res.json();
+      setProjects((data.projects ?? []).map(mapApiProject));
+    } catch {
+      // silently keep whatever was loaded
+    } finally {
+      setLoadingProjects(false);
+    }
+  }
+
+  useEffect(() => {
+    loadProjects();
+  }, []);
 
   const active    = projects.filter((p) => p.status === "ACTIVE");
   const other     = projects.filter((p) => p.status !== "ACTIVE");
   const hasProjects = projects.length > 0;
 
-  function addProject(p: Project) {
-    setProjects((prev) => [p, ...prev]);
+  async function addProject(_p: unknown) {
+    await loadProjects();
     setShowModal(false);
   }
 
@@ -741,10 +962,25 @@ export default function ProjectsPage() {
               {projects.length} project{projects.length !== 1 ? "s" : ""} · {active.length} active
             </p>
           </div>
-          <button onClick={handleNewProject}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm self-start sm:self-auto bg-blue-600 hover:bg-blue-500 text-white">
-            <Plus className="size-4" /> New Project
-          </button>
+          <div className="flex items-center gap-3 self-start sm:self-auto">
+            {/* View toggle */}
+            {hasProjects && (
+              <div className="flex items-center border border-border rounded-lg overflow-hidden">
+                <button onClick={() => setViewMode("cards")}
+                  className={`px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 transition-colors ${viewMode === "cards" ? "bg-blue-600 text-white" : "hover:bg-muted text-muted-foreground"}`}>
+                  <LayoutGrid className="size-3.5" /> Cards
+                </button>
+                <button onClick={() => setViewMode("gantt")}
+                  className={`px-3 py-1.5 text-xs font-medium flex items-center gap-1.5 border-l border-border transition-colors ${viewMode === "gantt" ? "bg-blue-600 text-white" : "hover:bg-muted text-muted-foreground"}`}>
+                  <GanttChartIcon className="size-3.5" /> Gantt
+                </button>
+              </div>
+            )}
+            <button onClick={handleNewProject}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm bg-blue-600 hover:bg-blue-500 text-white">
+              <Plus className="size-4" /> New Project
+            </button>
+          </div>
         </div>
 
         {/* Summary chips */}
@@ -772,31 +1008,62 @@ export default function ProjectsPage() {
         {/* Role-based getting started */}
         <RoleGuide />
 
-        {/* Projects */}
-        {!hasProjects ? (
-          <EmptyState onNew={() => setShowModal(true)} />
-        ) : (
-          <>
-            {active.length > 0 && (
-              <div>
-                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
-                  <span className="size-2 rounded-full bg-blue-500 inline-block" /> Active Projects
-                </h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  {active.map((p) => <ProjectCard key={p.id} project={p} />)}
+        {/* Loading skeleton */}
+        {loadingProjects && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {[1, 2].map((n) => (
+              <div key={n} className="rounded-2xl border border-border bg-card p-5 space-y-4 animate-pulse">
+                <div className="flex items-start gap-3">
+                  <div className="size-9 rounded-xl bg-muted" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-muted rounded w-2/3" />
+                    <div className="h-3 bg-muted rounded w-1/3" />
+                  </div>
                 </div>
+                <div className="h-3 bg-muted rounded w-full" />
+                <div className="h-3 bg-muted rounded w-3/4" />
               </div>
-            )}
+            ))}
+          </div>
+        )}
 
-            {other.length > 0 && (
-              <div>
-                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
-                  <span className="size-2 rounded-full bg-muted-foreground/40 inline-block" /> Other Projects
-                </h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  {other.map((p) => <ProjectCard key={p.id} project={p} />)}
-                </div>
-              </div>
+        {/* Projects */}
+        {!loadingProjects && (
+          <>
+            {!hasProjects ? (
+              <EmptyState onNew={() => setShowModal(true)} />
+            ) : (
+              <>
+                {viewMode === "gantt" && (
+                  <GanttView projects={[...active, ...other]} />
+                )}
+
+                {viewMode === "cards" && (
+                  <>
+                    {active.length > 0 && (
+                      <div>
+                        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
+                          <span className="size-2 rounded-full bg-blue-500 inline-block" /> Active Projects
+                        </h2>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                          {active.map((p) => <ProjectCard key={p.id} project={p} />)}
+                        </div>
+                      </div>
+                    )}
+
+                    {other.length > 0 && (
+                      <div>
+                        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
+                          <span className="size-2 rounded-full bg-muted-foreground/40 inline-block" /> Other Projects
+                        </h2>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                          {other.map((p) => <ProjectCard key={p.id} project={p} />)}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
             )}
           </>
         )}

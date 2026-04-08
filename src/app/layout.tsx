@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+import { Providers } from "@/components/providers";
 import { ChatWidgetGuard } from "@/components/landing/chat-widget-guard";
 import { CookieBanner } from "@/components/landing/cookie-banner";
 
@@ -33,7 +34,9 @@ export default function RootLayout({
       className={`${inter.variable} ${plusJakarta.variable} h-full antialiased`}
     >
       <body className="min-h-full">
-        {children}
+        <Providers>
+          {children}
+        </Providers>
         <ChatWidgetGuard />
         <CookieBanner />
       </body>

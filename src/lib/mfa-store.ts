@@ -4,7 +4,7 @@
 // confirms the code. This is safe because the setup flow completes in one
 // browser session within seconds.
 
-import { getPrisma } from "./prisma";
+import { prisma } from "./prisma";
 
 // In-memory pending secrets only (setup not yet confirmed).
 // These are short-lived (seconds) and don't need to survive a server restart.
@@ -18,7 +18,6 @@ export type MFARecord = {
 };
 
 export async function getMfaRecord(email: string): Promise<MFARecord | undefined> {
-  const prisma = getPrisma();
   if (!prisma) return undefined;
 
   const user = await prisma.user.findUnique({
@@ -49,7 +48,6 @@ export async function enableMfa(email: string) {
   const secret = pending.get(email);
   if (!secret) throw new Error("No pending MFA secret for this email.");
 
-  const prisma = getPrisma();
   if (!prisma) throw new Error("Database not available.");
 
   await prisma.user.update({
@@ -61,7 +59,6 @@ export async function enableMfa(email: string) {
 }
 
 export async function disableMfa(email: string) {
-  const prisma = getPrisma();
   if (!prisma) throw new Error("Database not available.");
 
   await prisma.user.update({

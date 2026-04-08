@@ -689,7 +689,7 @@ export default function LandingPage() {
                 className="bg-blue-600 hover:bg-blue-500 text-white h-12 px-8 text-base font-semibold"
                 style={{ animation: "glow-btn 3s ease-in-out infinite" }}
               >
-                Create Account
+                Get Started
                 <ArrowRight className="ml-2 size-4" />
               </Button>
             </Link>
@@ -1218,7 +1218,7 @@ export default function LandingPage() {
                     className="bg-blue-600 hover:bg-blue-500 text-white h-12 px-10 text-base font-semibold"
                     style={{ animation: "glow-btn 3s ease-in-out infinite" }}
                   >
-                    Create Account
+                    Get Started
                     <ArrowRight className="ml-2 size-4" />
                   </Button>
                 </Link>

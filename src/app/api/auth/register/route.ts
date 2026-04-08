@@ -3,7 +3,7 @@ import { randomBytes } from "crypto";
 import { hashPassword } from "@/lib/password";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { isPasswordStrong } from "@/lib/password";
-import { getPrisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 
 function generateOtp(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
@@ -14,10 +14,9 @@ function generateRegToken(): string {
 }
 
 export async function POST(req: Request) {
-  const prisma = getPrisma();
   if (!prisma) {
     const hint = process.env.NODE_ENV === "development"
-      ? "Database not connected. Run `npx prisma generate` then `npx prisma db push` and ensure DATABASE_URL is set in .env.local."
+      ? "Database not connected. Check DATABASE_URL in .env.local."
       : "Service temporarily unavailable. Please try again shortly.";
     return NextResponse.json({ error: hint }, { status: 503 });
   }

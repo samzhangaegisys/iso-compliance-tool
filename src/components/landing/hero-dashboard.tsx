@@ -477,7 +477,7 @@ export function HeroDashboard() {
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ position: "relative", maxWidth: 896, margin: "0 auto", padding: "0 16px" }}>
+    <div style={{ position: "relative", maxWidth: 1100, margin: "0 auto", padding: "0 16px" }}>
 
       {/* Tab nav above browser */}
       <div style={{ display: "flex", gap: 4, justifyContent: "center", marginBottom: 12 }}>
@@ -558,7 +558,7 @@ export function HeroDashboard() {
         </div>
 
         {/* Dashboard viewport */}
-        <div style={{ height: 360, overflow: "hidden", background: "#fff" }}>
+        <div style={{ height: 480, overflow: "hidden", background: "#fff" }}>
           {activeTab === "dashboard" && <DashboardView active={activeTab === "dashboard"} />}
           {activeTab === "gap"       && <GapAnalysisView />}
           {activeTab === "evidence"  && <EvidenceView />}

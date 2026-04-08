@@ -6,7 +6,7 @@ import {
   ArrowRight, ChevronLeft, ChevronRight,
   ShieldCheck, BarChart3, FileCheck2, ListTodo, FileText,
   CheckCircle2, AlertTriangle, Clock, User, Paperclip,
-  TrendingUp, Lock, Bell,
+  TrendingUp, Lock, Bell, Activity, Plus,
 } from "lucide-react";
 import { LogoLink } from "@/components/landing/logo-link";
 
@@ -50,273 +50,330 @@ const STEPS = [
   },
 ];
 
-// ── App Mockups ────────────────────────────────────────────────────────────────
+// ── App Mockups (white/light — matches the real app) ───────────────────────────
 
-function DashboardMockup() {
-  const standards = [
-    { name: "ISO 27001", score: 78, color: "bg-blue-500" },
-    { name: "ISO 9001",  score: 91, color: "bg-emerald-500" },
-    { name: "ISO 14001", score: 54, color: "bg-amber-500" },
-    { name: "ISO 45001", score: 62, color: "bg-orange-400" },
-    { name: "ISO 42001", score: 33, color: "bg-red-500" },
-  ];
+function BrowserFrame({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-xl overflow-hidden border border-slate-700 shadow-2xl bg-slate-900 text-white text-xs">
-      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-700 bg-slate-800">
+    <div className="rounded-xl overflow-hidden border border-slate-200 shadow-2xl bg-white text-xs">
+      {/* Chrome bar */}
+      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-200 bg-[#e8eaed]">
         <div className="flex gap-1.5">
-          <div className="size-2.5 rounded-full bg-red-500/70" />
-          <div className="size-2.5 rounded-full bg-amber-500/70" />
-          <div className="size-2.5 rounded-full bg-emerald-500/70" />
+          <div className="size-2.5 rounded-full bg-[#ff5f57]" />
+          <div className="size-2.5 rounded-full bg-[#ffbd2e]" />
+          <div className="size-2.5 rounded-full bg-[#28c940]" />
         </div>
-        <span className="text-slate-400 text-[10px]">ISOComply — Compliance Dashboard</span>
+        <div className="flex-1 bg-white rounded border border-slate-300 px-2.5 py-0.5 flex items-center gap-1.5">
+          <ShieldCheck className="size-2.5 text-blue-600" />
+          <span className="text-[10px] text-slate-500">{title}</span>
+        </div>
       </div>
-      <div className="p-4 space-y-3">
-        <div className="grid grid-cols-3 gap-2">
+      {/* App layout */}
+      <div className="flex" style={{ height: 360 }}>
+        {/* Sidebar */}
+        <div className="w-28 bg-slate-50 border-r border-slate-200 flex flex-col py-2 shrink-0">
+          <div className="flex items-center gap-1.5 px-3 pb-2 mb-1 border-b border-slate-200">
+            <div className="size-5 rounded bg-blue-600 flex items-center justify-center shrink-0">
+              <ShieldCheck className="size-3 text-white" />
+            </div>
+            <span className="text-[9px] font-bold text-slate-800">ISOComply</span>
+          </div>
           {[
-            { label: "Overall Score", value: "72%", color: "text-blue-400" },
-            { label: "Controls Met", value: "89/114", color: "text-emerald-400" },
-            { label: "Open Tasks", value: "7", color: "text-amber-400" },
-          ].map((c) => (
-            <div key={c.label} className="rounded-lg bg-slate-800 border border-slate-700 p-2.5 text-center">
-              <p className={`text-base font-bold ${c.color}`}>{c.value}</p>
-              <p className="text-[9px] text-slate-500 mt-0.5">{c.label}</p>
+            { label: "Dashboard",   icon: BarChart3,  active: false },
+            { label: "Standards",   icon: ShieldCheck, active: false },
+            { label: "Projects",    icon: FileText,    active: false },
+            { label: "Tasks",       icon: ListTodo,    active: false },
+            { label: "Evidence",    icon: FileCheck2,  active: false },
+            { label: "Gap Analysis",icon: TrendingUp,  active: false },
+          ].map((item) => (
+            <div key={item.label}
+              className={`flex items-center gap-1.5 px-3 py-1.5 mx-1 rounded text-[9px] font-medium ${item.active ? "bg-blue-50 text-blue-700" : "text-slate-600"}`}>
+              <item.icon className="size-3 shrink-0" />
+              {item.label}
             </div>
           ))}
         </div>
-        <div className="rounded-lg bg-slate-800 border border-slate-700 p-3 space-y-2.5">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Compliance by Standard</p>
-          {standards.map((s) => (
-            <div key={s.name}>
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-[10px] text-slate-300">{s.name}</span>
-                <span className="text-[10px] font-bold text-slate-300">{s.score}%</span>
-              </div>
-              <div className="h-1.5 rounded-full bg-slate-700">
-                <div className={`h-full rounded-full ${s.color}`} style={{ width: `${s.score}%` }} />
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="rounded-lg bg-slate-800 border border-slate-700 p-3">
-          <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2">Recent Activity</p>
-          {[
-            { icon: CheckCircle2, text: "Risk assessment uploaded", time: "2h ago", color: "text-emerald-400" },
-            { icon: AlertTriangle, text: "Evidence expiring — ISO 9001 §7.5", time: "Yesterday", color: "text-amber-400" },
-            { icon: User, text: "Sarah K. assigned to access review", time: "2 days ago", color: "text-blue-400" },
-          ].map((a, i) => (
-            <div key={i} className="flex items-center gap-2 py-1.5 border-b border-slate-700/50 last:border-0">
-              <a.icon className={`size-3 shrink-0 ${a.color}`} />
-              <span className="text-[10px] text-slate-300 flex-1 truncate">{a.text}</span>
-              <span className="text-[9px] text-slate-500 shrink-0">{a.time}</span>
-            </div>
-          ))}
+        {/* Main content */}
+        <div className="flex-1 bg-white overflow-hidden">
+          {children}
         </div>
       </div>
     </div>
+  );
+}
+
+function DashboardMockup() {
+  const standards = [
+    { name: "ISO 27001", score: 68, color: "#3b82f6" },
+    { name: "ISO 9001",  score: 84, color: "#22c55e" },
+    { name: "ISO 14001", score: 42, color: "#f59e0b" },
+    { name: "ISO 45001", score: 91, color: "#10b981" },
+    { name: "ISO 42001", score: 23, color: "#a855f7" },
+  ];
+  return (
+    <BrowserFrame title="app.isocomply.io/dashboard">
+      <div className="p-3 space-y-2.5 overflow-hidden">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[11px] font-bold text-slate-900">Dashboard</p>
+            <p className="text-[9px] text-slate-500">Compliance overview</p>
+          </div>
+          <div className="flex gap-1.5">
+            <div className="flex items-center gap-1 px-2 py-1 rounded border border-slate-200 text-[9px] text-slate-600">
+              <TrendingUp className="size-2.5" />View Reports
+            </div>
+            <div className="flex items-center gap-1 px-2 py-1 rounded bg-blue-600 text-[9px] text-white">
+              <Plus className="size-2.5" />New Project
+            </div>
+          </div>
+        </div>
+        {/* Stats row */}
+        <div className="grid grid-cols-4 gap-1.5">
+          {[
+            { label: "Overall Score", value: "62%", color: "text-blue-600" },
+            { label: "Open Tasks",    value: "24",  color: "text-slate-900" },
+            { label: "Evidence Files",value: "147", color: "text-slate-900" },
+            { label: "Standards",     value: "5",   color: "text-slate-900" },
+          ].map((s) => (
+            <div key={s.label} className="rounded-lg border border-slate-200 p-2">
+              <p className={`text-sm font-bold ${s.color}`}>{s.value}</p>
+              <p className="text-[8px] text-slate-500">{s.label}</p>
+            </div>
+          ))}
+        </div>
+        {/* Standards */}
+        <div className="rounded-lg border border-slate-200 p-2.5">
+          <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wide mb-2">Compliance by Standard</p>
+          <div className="space-y-1.5">
+            {standards.map((s) => (
+              <div key={s.name} className="flex items-center gap-2">
+                <span className="text-[9px] text-slate-600 w-16 shrink-0">{s.name}</span>
+                <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${s.score}%`, backgroundColor: s.color }} />
+                </div>
+                <span className="text-[9px] font-bold w-6 text-right shrink-0" style={{ color: s.color }}>{s.score}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* Activity */}
+        <div className="rounded-lg border border-slate-200 p-2.5">
+          <p className="text-[9px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Recent Activity</p>
+          {[
+            { icon: CheckCircle2, text: "Access control policy approved", time: "2 min ago", cls: "text-emerald-600 bg-emerald-50" },
+            { icon: FileCheck2,   text: "Evidence uploaded: ISMS-Scope.pdf", time: "18 min ago", cls: "text-blue-600 bg-blue-50" },
+            { icon: AlertTriangle,text: "Risk assessment due in 3 days", time: "1 hr ago", cls: "text-amber-600 bg-amber-50" },
+          ].map((a, i) => (
+            <div key={i} className="flex items-center gap-2 py-1 border-b border-slate-100 last:border-0">
+              <span className={`size-5 rounded flex items-center justify-center shrink-0 ${a.cls}`}>
+                <a.icon className="size-2.5" />
+              </span>
+              <span className="text-[9px] text-slate-700 flex-1 truncate">{a.text}</span>
+              <span className="text-[8px] text-slate-400 shrink-0">{a.time}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </BrowserFrame>
   );
 }
 
 function GapMockup() {
   const controls = [
-    { ref: "6.1.1", name: "Information security objectives", status: "met", risk: "Low" },
-    { ref: "6.1.2", name: "Risk assessment process", status: "partial", risk: "High" },
-    { ref: "6.1.3", name: "Statement of Applicability", status: "gap", risk: "Critical" },
-    { ref: "7.2",   name: "Competence records", status: "met", risk: "Low" },
-    { ref: "8.1",   name: "Operational planning & control", status: "partial", risk: "Medium" },
-    { ref: "9.2",   name: "Internal audit programme", status: "gap", risk: "High" },
+    { ref: "6.1.1", name: "Information security objectives", status: "met",     risk: "Low",      riskColor: "text-emerald-600" },
+    { ref: "6.1.2", name: "Risk assessment process",         status: "partial", risk: "High",     riskColor: "text-orange-600" },
+    { ref: "6.1.3", name: "Statement of Applicability",      status: "gap",     risk: "Critical", riskColor: "text-red-600" },
+    { ref: "7.2",   name: "Competence records",              status: "met",     risk: "Low",      riskColor: "text-emerald-600" },
+    { ref: "8.1",   name: "Operational planning & control",  status: "partial", risk: "Medium",   riskColor: "text-amber-600" },
+    { ref: "9.2",   name: "Internal audit programme",        status: "gap",     risk: "High",     riskColor: "text-orange-600" },
   ];
   const statusStyle: Record<string, string> = {
-    met:     "bg-emerald-900/50 text-emerald-400 border-emerald-700/50",
-    partial: "bg-amber-900/50 text-amber-400 border-amber-700/50",
-    gap:     "bg-red-900/50 text-red-400 border-red-700/50",
+    met:     "bg-emerald-50 text-emerald-700 border-emerald-200",
+    partial: "bg-amber-50 text-amber-700 border-amber-200",
+    gap:     "bg-red-50 text-red-700 border-red-200",
   };
   const statusLabel: Record<string, string> = { met: "Met", partial: "Partial", gap: "Gap" };
   return (
-    <div className="rounded-xl overflow-hidden border border-slate-700 shadow-2xl bg-slate-900 text-white text-xs">
-      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-700 bg-slate-800">
-        <div className="flex gap-1.5">
-          <div className="size-2.5 rounded-full bg-red-500/70" />
-          <div className="size-2.5 rounded-full bg-amber-500/70" />
-          <div className="size-2.5 rounded-full bg-emerald-500/70" />
+    <BrowserFrame title="app.isocomply.io/gap-analysis">
+      <div className="p-3 overflow-hidden">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-[11px] font-bold text-slate-900">Gap Analysis · ISO 27001</p>
+          <span className="text-[9px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-semibold">68% Complete</span>
         </div>
-        <span className="text-slate-400 text-[10px]">ISOComply — Gap Analysis · ISO 27001</span>
-      </div>
-      <div className="p-4">
-        <div className="flex gap-2 mb-3">
+        <div className="flex gap-1.5 mb-2.5">
           {[
-            { label: "2 Gaps", color: "bg-red-900/60 text-red-400 border-red-700/50" },
-            { label: "2 Partial", color: "bg-amber-900/60 text-amber-400 border-amber-700/50" },
-            { label: "2 Met", color: "bg-emerald-900/60 text-emerald-400 border-emerald-700/50" },
+            { label: "2 Gaps",    color: "bg-red-50 text-red-700 border-red-200" },
+            { label: "2 Partial", color: "bg-amber-50 text-amber-700 border-amber-200" },
+            { label: "2 Met",     color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
           ].map((c) => (
-            <span key={c.label} className={`text-[10px] px-2 py-0.5 rounded border font-semibold ${c.color}`}>{c.label}</span>
+            <span key={c.label} className={`text-[9px] px-2 py-0.5 rounded border font-semibold ${c.color}`}>{c.label}</span>
           ))}
         </div>
-        <div className="rounded-lg border border-slate-700 overflow-hidden">
-          <div className="grid grid-cols-[2rem_1fr_4rem_4rem] bg-slate-800 px-2 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wide">
+        <div className="rounded-lg border border-slate-200 overflow-hidden">
+          <div className="grid grid-cols-[2rem_1fr_4rem_4rem] bg-slate-50 px-2 py-1.5 text-[9px] font-semibold text-slate-500 uppercase tracking-wide border-b border-slate-200">
             <span>Ref</span><span>Control</span><span className="text-center">Status</span><span className="text-center">Risk</span>
           </div>
           {controls.map((c) => (
-            <div key={c.ref} className="grid grid-cols-[2rem_1fr_4rem_4rem] px-2 py-1.5 border-t border-slate-700/50 items-center">
+            <div key={c.ref} className="grid grid-cols-[2rem_1fr_4rem_4rem] px-2 py-1.5 border-b border-slate-100 last:border-0 items-center hover:bg-slate-50">
               <span className="text-[9px] font-mono text-slate-400">{c.ref}</span>
-              <span className="text-[10px] text-slate-300 truncate pr-2">{c.name}</span>
-              <span className={`text-[9px] px-1.5 py-0.5 rounded border text-center font-semibold ${statusStyle[c.status]}`}>{statusLabel[c.status]}</span>
-              <span className="text-[9px] text-slate-400 text-center">{c.risk}</span>
+              <span className="text-[9px] text-slate-700 truncate pr-2">{c.name}</span>
+              <span className={`text-[8px] px-1.5 py-0.5 rounded border text-center font-semibold mx-auto ${statusStyle[c.status]}`}>{statusLabel[c.status]}</span>
+              <span className={`text-[9px] text-center font-medium ${c.riskColor}`}>{c.risk}</span>
             </div>
           ))}
         </div>
+        {/* AI recommendation box */}
+        <div className="mt-2.5 rounded-lg bg-blue-50 border border-blue-200 p-2">
+          <p className="text-[9px] font-semibold text-blue-800 mb-0.5">AI Recommendation</p>
+          <p className="text-[8px] text-blue-700 leading-relaxed">Address ISO 27001 §6.1.3 (Statement of Applicability) first — it is a mandatory prerequisite for certification.</p>
+        </div>
       </div>
-    </div>
+    </BrowserFrame>
   );
 }
 
 function EvidenceMockup() {
   const files = [
-    { name: "Information Security Policy v2.1.pdf", standard: "ISO 27001", control: "5.2", expires: "Dec 2026", status: "valid" },
-    { name: "Risk Register Q1 2026.xlsx", standard: "ISO 27001", control: "6.1.2", expires: "Apr 2026", status: "expiring" },
-    { name: "Internal Audit Report Mar 2026.pdf", standard: "ISO 9001", control: "9.2", expires: "Mar 2027", status: "valid" },
-    { name: "Environmental Aspects Register.xlsx", standard: "ISO 14001", control: "6.1.2", expires: "Jun 2026", status: "valid" },
+    { name: "Information Security Policy v2.1.pdf", standard: "ISO 27001", control: "5.2",   expires: "Dec 2026", status: "valid" },
+    { name: "Risk Register Q1 2026.xlsx",           standard: "ISO 27001", control: "6.1.2", expires: "Apr 2026", status: "expiring" },
+    { name: "Internal Audit Report Mar 2026.pdf",   standard: "ISO 9001",  control: "9.2",   expires: "Mar 2027", status: "valid" },
+    { name: "Environmental Aspects Register.xlsx",  standard: "ISO 14001", control: "6.1.2", expires: "Jun 2026", status: "valid" },
   ];
   return (
-    <div className="rounded-xl overflow-hidden border border-slate-700 shadow-2xl bg-slate-900 text-white text-xs">
-      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-700 bg-slate-800">
-        <div className="flex gap-1.5">
-          <div className="size-2.5 rounded-full bg-red-500/70" />
-          <div className="size-2.5 rounded-full bg-amber-500/70" />
-          <div className="size-2.5 rounded-full bg-emerald-500/70" />
+    <BrowserFrame title="app.isocomply.io/evidence">
+      <div className="p-3 space-y-2.5 overflow-hidden">
+        <div className="flex items-center justify-between">
+          <p className="text-[11px] font-bold text-slate-900">Evidence Vault</p>
+          <div className="flex items-center gap-1 px-2 py-1 rounded bg-blue-600 text-[9px] text-white">
+            <Plus className="size-2.5" />Upload Evidence
+          </div>
         </div>
-        <span className="text-slate-400 text-[10px]">ISOComply — Evidence Vault</span>
-      </div>
-      <div className="p-4 space-y-3">
-        <div className="border-2 border-dashed border-slate-600 rounded-lg py-4 text-center">
-          <Paperclip className="size-5 text-slate-500 mx-auto mb-1" />
-          <p className="text-[10px] text-slate-400">Drag & drop files, or <span className="text-blue-400">browse</span></p>
-          <p className="text-[9px] text-slate-600 mt-0.5">PDF, DOCX, XLSX, PNG up to 50 MB</p>
+        <div className="border-2 border-dashed border-slate-300 rounded-lg py-3 text-center bg-slate-50">
+          <Paperclip className="size-4 text-slate-400 mx-auto mb-1" />
+          <p className="text-[9px] text-slate-500">Drag & drop files, or <span className="text-blue-600">browse</span></p>
+          <p className="text-[8px] text-slate-400 mt-0.5">PDF, DOCX, XLSX, PNG up to 50 MB</p>
         </div>
-        <div className="rounded-lg border border-slate-700 overflow-hidden">
-          <div className="bg-slate-800 px-3 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wide flex gap-2">
-            <span className="flex-1">Document</span><span className="w-16">Control</span><span className="w-14">Expires</span><span className="w-12 text-right">Status</span>
+        <div className="rounded-lg border border-slate-200 overflow-hidden">
+          <div className="bg-slate-50 px-3 py-1.5 text-[9px] font-semibold text-slate-500 uppercase tracking-wide flex gap-2 border-b border-slate-200">
+            <span className="flex-1">Document</span><span className="w-12">Control</span><span className="w-14">Expires</span><span className="w-12 text-right">Status</span>
           </div>
           {files.map((f) => (
-            <div key={f.name} className="flex items-center gap-2 px-3 py-2 border-t border-slate-700/50">
-              <div className="size-6 rounded bg-blue-900/60 flex items-center justify-center shrink-0">
-                <Paperclip className="size-3 text-blue-400" />
+            <div key={f.name} className="flex items-center gap-2 px-3 py-1.5 border-b border-slate-100 last:border-0 hover:bg-slate-50">
+              <div className="size-6 rounded bg-blue-50 flex items-center justify-center shrink-0">
+                <Paperclip className="size-3 text-blue-500" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] text-slate-300 truncate">{f.name}</p>
-                <p className="text-[9px] text-slate-500">{f.standard}</p>
+                <p className="text-[9px] text-slate-800 truncate">{f.name}</p>
+                <p className="text-[8px] text-slate-400">{f.standard}</p>
               </div>
-              <span className="text-[9px] text-slate-500 w-16 shrink-0 font-mono">{f.control}</span>
-              <span className="text-[9px] text-slate-500 w-14 shrink-0">{f.expires}</span>
-              <span className={`text-[9px] font-semibold w-12 text-right shrink-0 ${f.status === "expiring" ? "text-amber-400" : "text-emerald-400"}`}>
-                {f.status === "expiring" ? "Expiring" : "Valid"}
+              <span className="text-[8px] text-slate-400 w-12 shrink-0 font-mono">{f.control}</span>
+              <span className="text-[8px] text-slate-400 w-14 shrink-0">{f.expires}</span>
+              <span className={`text-[8px] font-semibold w-12 text-right shrink-0 ${f.status === "expiring" ? "text-amber-600" : "text-emerald-600"}`}>
+                {f.status === "expiring" ? "⚠ Expiring" : "✓ Valid"}
               </span>
             </div>
           ))}
         </div>
       </div>
-    </div>
+    </BrowserFrame>
   );
 }
 
 function TasksMockup() {
   const tasks = [
-    { title: "Complete risk assessment documentation", status: "In Progress", assignee: "SK", color: "bg-blue-500", due: "Apr 12", priority: "HIGH", priorityColor: "text-orange-400" },
-    { title: "Update Statement of Applicability", status: "Todo", assignee: "SK", color: "bg-blue-500", due: "May 12", priority: "CRITICAL", priorityColor: "text-red-400" },
-    { title: "Conduct internal audit clause 9.2", status: "Todo", assignee: "JO", color: "bg-emerald-500", due: "Apr 18", priority: "HIGH", priorityColor: "text-orange-400" },
-    { title: "Update access control matrix", status: "In Review", assignee: "SK", color: "bg-blue-500", due: "May 2", priority: "HIGH", priorityColor: "text-orange-400" },
-    { title: "H&S inspection of all work areas", status: "Done", assignee: "TR", color: "bg-purple-500", due: "May 15", priority: "HIGH", priorityColor: "text-orange-400" },
+    { title: "Complete risk assessment documentation",   status: "In Progress", assignee: "SK", due: "Apr 12", priority: "HIGH",     pColor: "text-orange-600 bg-orange-50 border-orange-200" },
+    { title: "Update Statement of Applicability",        status: "To Do",       assignee: "SK", due: "May 12", priority: "CRITICAL", pColor: "text-red-600 bg-red-50 border-red-200" },
+    { title: "Conduct internal audit clause 9.2",        status: "To Do",       assignee: "JO", due: "Apr 18", priority: "HIGH",     pColor: "text-orange-600 bg-orange-50 border-orange-200" },
+    { title: "Update access control matrix",             status: "In Review",   assignee: "SK", due: "May 2",  priority: "HIGH",     pColor: "text-orange-600 bg-orange-50 border-orange-200" },
+    { title: "H&S inspection of all work areas",         status: "Done",        assignee: "TR", due: "May 15", priority: "MEDIUM",   pColor: "text-amber-600 bg-amber-50 border-amber-200" },
   ];
-  const statusPill: Record<string, string> = {
-    "Todo":        "bg-slate-700 text-slate-300",
-    "In Progress": "bg-blue-900/60 text-blue-400",
-    "In Review":   "bg-amber-900/60 text-amber-400",
-    "Done":        "bg-emerald-900/60 text-emerald-400",
+  const statusStyle: Record<string, string> = {
+    "To Do":       "bg-slate-100 text-slate-600",
+    "In Progress": "bg-blue-50 text-blue-700",
+    "In Review":   "bg-amber-50 text-amber-700",
+    "Done":        "bg-emerald-50 text-emerald-700",
   };
+  const avatarColor: Record<string, string> = { SK: "bg-blue-500", JO: "bg-emerald-500", TR: "bg-purple-500" };
   return (
-    <div className="rounded-xl overflow-hidden border border-slate-700 shadow-2xl bg-slate-900 text-white text-xs">
-      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-700 bg-slate-800">
-        <div className="flex gap-1.5">
-          <div className="size-2.5 rounded-full bg-red-500/70" />
-          <div className="size-2.5 rounded-full bg-amber-500/70" />
-          <div className="size-2.5 rounded-full bg-emerald-500/70" />
+    <BrowserFrame title="app.isocomply.io/tasks">
+      <div className="p-3 overflow-hidden">
+        <div className="flex items-center justify-between mb-2.5">
+          <p className="text-[11px] font-bold text-slate-900">Tasks</p>
+          <div className="flex items-center gap-1 px-2 py-1 rounded bg-blue-600 text-[9px] text-white">
+            <Plus className="size-2.5" />New Task
+          </div>
         </div>
-        <span className="text-slate-400 text-[10px]">ISOComply — Tasks</span>
-      </div>
-      <div className="p-4">
-        <div className="rounded-lg border border-slate-700 overflow-hidden">
-          <div className="grid grid-cols-[1fr_5rem_4rem_4rem_2rem] bg-slate-800 px-3 py-1.5 text-[9px] font-semibold text-slate-400 uppercase tracking-wide">
-            <span>Task</span><span>Status</span><span>Due</span><span>Priority</span><span></span>
+        <div className="rounded-lg border border-slate-200 overflow-hidden">
+          <div className="grid grid-cols-[1fr_5rem_3.5rem_4.5rem] bg-slate-50 px-3 py-1.5 text-[9px] font-semibold text-slate-500 uppercase tracking-wide border-b border-slate-200">
+            <span>Task</span><span>Status</span><span>Due</span><span>Priority</span>
           </div>
           {tasks.map((t, i) => (
-            <div key={i} className="grid grid-cols-[1fr_5rem_4rem_4rem_2rem] px-3 py-2 border-t border-slate-700/50 items-center">
+            <div key={i} className="grid grid-cols-[1fr_5rem_3.5rem_4.5rem] px-3 py-2 border-b border-slate-100 last:border-0 items-center hover:bg-slate-50">
               <div className="flex items-center gap-2 min-w-0">
-                <div className={`size-5 rounded-full ${t.color} flex items-center justify-center shrink-0`}>
-                  <span className="text-[8px] font-bold text-white">{t.assignee}</span>
+                <div className={`size-5 rounded-full ${avatarColor[t.assignee] ?? "bg-slate-400"} flex items-center justify-center shrink-0`}>
+                  <span className="text-[7px] font-bold text-white">{t.assignee}</span>
                 </div>
-                <span className="text-[10px] text-slate-300 truncate">{t.title}</span>
+                <span className="text-[9px] text-slate-700 truncate">{t.title}</span>
               </div>
-              <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium w-fit ${statusPill[t.status]}`}>{t.status}</span>
-              <span className="text-[9px] text-slate-500 flex items-center gap-0.5"><Clock className="size-2.5" />{t.due}</span>
-              <span className={`text-[9px] font-bold ${t.priorityColor}`}>{t.priority}</span>
-              <span />
+              <span className={`text-[8px] px-1.5 py-0.5 rounded font-medium w-fit ${statusStyle[t.status]}`}>{t.status}</span>
+              <span className="text-[8px] text-slate-500 flex items-center gap-0.5"><Clock className="size-2" />{t.due}</span>
+              <span className={`text-[8px] font-semibold px-1.5 py-0.5 rounded border ${t.pColor}`}>{t.priority}</span>
             </div>
           ))}
         </div>
       </div>
-    </div>
+    </BrowserFrame>
   );
 }
 
 function ReportMockup() {
   return (
-    <div className="rounded-xl overflow-hidden border border-slate-700 shadow-2xl bg-slate-900 text-white text-xs">
-      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-700 bg-slate-800">
-        <div className="flex gap-1.5">
-          <div className="size-2.5 rounded-full bg-red-500/70" />
-          <div className="size-2.5 rounded-full bg-amber-500/70" />
-          <div className="size-2.5 rounded-full bg-emerald-500/70" />
-        </div>
-        <span className="text-slate-400 text-[10px]">ISOComply — Audit Report Generator</span>
-      </div>
-      <div className="p-4 space-y-3">
-        <div className="rounded-lg border border-slate-700 bg-slate-800 overflow-hidden">
-          <div className="bg-gradient-to-r from-blue-900 to-slate-800 p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <ShieldCheck className="size-4 text-blue-400" />
-              <span className="text-xs font-bold text-white">ISOComply</span>
-            </div>
-            <p className="text-sm font-bold text-white">ISO 27001:2022 Audit Report</p>
-            <p className="text-[10px] text-blue-300 mt-0.5">Acme Ltd · April 2026</p>
+    <BrowserFrame title="app.isocomply.io/reports">
+      <div className="p-3 space-y-2.5 overflow-hidden">
+        <div className="flex items-center justify-between">
+          <p className="text-[11px] font-bold text-slate-900">Audit Report Generator</p>
+          <div className="flex items-center gap-1 px-2 py-1 rounded bg-blue-600 text-[9px] text-white">
+            <TrendingUp className="size-2.5" />Generate Report
           </div>
-          <div className="p-3 space-y-2">
+        </div>
+        {/* Report preview card */}
+        <div className="rounded-lg border border-slate-200 overflow-hidden">
+          <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-3">
+            <div className="flex items-center gap-2 mb-1.5">
+              <ShieldCheck className="size-3.5 text-white" />
+              <span className="text-[10px] font-bold text-white">ISOComply</span>
+            </div>
+            <p className="text-[11px] font-bold text-white">ISO 27001:2022 Audit Report</p>
+            <p className="text-[9px] text-blue-200 mt-0.5">Acme Ltd · April 2026 · 68% Compliance</p>
+          </div>
+          <div className="p-3 space-y-2 bg-white">
             {[
-              { section: "Executive Summary", lines: 2 },
-              { section: "Compliance Score", lines: 1 },
-              { section: "Controls Assessment", lines: 3 },
-              { section: "Evidence Index", lines: 2 },
+              { section: "Executive Summary",    lines: 2 },
+              { section: "Compliance Score",     lines: 1 },
+              { section: "Controls Assessment",  lines: 3 },
+              { section: "Evidence Index",       lines: 2 },
             ].map((s) => (
               <div key={s.section}>
-                <p className="text-[9px] font-semibold text-blue-400 mb-1">{s.section}</p>
+                <p className="text-[8px] font-semibold text-blue-600 mb-1">{s.section}</p>
                 {Array.from({ length: s.lines }).map((_, i) => (
-                  <div key={i} className={`h-1.5 rounded-full bg-slate-600 mb-1 ${i === s.lines - 1 ? "w-2/3" : "w-full"}`} />
+                  <div key={i} className={`h-1.5 rounded-full bg-slate-200 mb-1 ${i === s.lines - 1 ? "w-2/3" : "w-full"}`} />
                 ))}
               </div>
             ))}
           </div>
         </div>
         <div className="flex gap-2">
-          <button className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-blue-600 text-[10px] font-semibold text-white">
+          <button className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-blue-600 text-[9px] font-semibold text-white">
             <TrendingUp className="size-3" /> Download PDF
           </button>
-          <button className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-slate-700 text-[10px] font-semibold text-slate-300">
+          <button className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border border-slate-200 text-[9px] font-semibold text-slate-600">
             <Lock className="size-3" /> Share Link
           </button>
         </div>
-        <p className="text-center text-[9px] text-slate-500 flex items-center justify-center gap-1">
+        <p className="text-center text-[8px] text-slate-400 flex items-center justify-center gap-1">
           <Bell className="size-2.5" /> Report auto-updates when new evidence is added
         </p>
       </div>
-    </div>
+    </BrowserFrame>
   );
 }
 
@@ -385,7 +442,7 @@ export default function HowItWorksPage() {
         </div>
 
         {/* Main content area */}
-        <div className="grid lg:grid-cols-[1fr_1.2fr] gap-10 items-center">
+        <div className="grid lg:grid-cols-[1fr_1.4fr] gap-10 items-center">
           <div>
             <p className="text-blue-400 text-xs font-semibold tracking-widest uppercase mb-3">Step {step.step}</p>
             <h2 className="text-3xl font-bold text-white mb-4 leading-snug"
@@ -414,7 +471,7 @@ export default function HowItWorksPage() {
               ) : (
                 <Link href="/register"
                   className="flex items-center gap-1.5 px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white transition-colors text-sm font-semibold">
-                  Create Account <ArrowRight className="size-4" />
+                  Get Started <ArrowRight className="size-4" />
                 </Link>
               )}
             </div>

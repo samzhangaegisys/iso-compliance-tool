@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signIn } from "next-auth/react";
+import { signIn, signOut } from "next-auth/react";
 import {
   ShieldCheck, Mail, Lock, User, Phone, AlertCircle, ArrowRight,
   CheckCircle2, Building2, Smartphone, CreditCard, Eye, EyeOff, Users,
@@ -42,7 +42,7 @@ const COUNTRY_CODES = [
 
 function validatePhone(dialCode: string, number: string): boolean {
   const digits = number.replace(/\D/g, "");
-  if (!digits) return true; // optional field — blank is fine
+  if (!digits) return false; // required field
   const entry = COUNTRY_CODES.find((c) => c.code === dialCode && (c.country === "US" ? dialCode === "+1" : true));
   if (!entry) return digits.length >= 7 && digits.length <= 15;
   return entry.pattern.test(digits);
@@ -189,6 +189,13 @@ function RegisterForm() {
     setError(null);
     if (!isPasswordStrong(state.password)) { setError("Password does not meet the complexity requirements."); return; }
     if (!state.consentTerms) { setError("You must agree to the Terms of Service and Privacy Policy."); return; }
+    if (!state.phone.trim()) { setError("Mobile number is required."); return; }
+    if (!validatePhone(state.dialCode, state.phone)) {
+      const entry = COUNTRY_CODES.find((c) => c.code === state.dialCode);
+      setPhoneError(`Format: ${entry?.hint ?? "digits only"}`);
+      setError("Please enter a valid mobile number.");
+      return;
+    }
     if (!captchaToken) { setError("Please complete the human verification."); return; }
     setLoading(true);
     try {
@@ -276,8 +283,15 @@ function RegisterForm() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Failed to create workspace. Please try again."); return; }
+      // Sign out any existing session (e.g. master admin), then sign in as the new user
+      await signOut({ redirect: false });
       const result = await signIn("credentials", { email: state.email, password: state.password, redirect: false });
-      router.push(result?.ok ? "/dashboard" : `/login?registered=1&email=${encodeURIComponent(state.email)}`);
+      if (result?.ok) {
+        localStorage.setItem("isocomply_new_user", "1");
+        router.push("/dashboard");
+      } else {
+        router.push(`/login?registered=1&email=${encodeURIComponent(state.email)}`);
+      }
     } catch { setError("Something went wrong. Please try again."); }
     finally { setLoading(false); }
   }
@@ -417,7 +431,7 @@ function RegisterForm() {
 
                 <div className="space-y-1.5">
                   <Label className="text-sm font-medium text-slate-700">
-                    Mobile number <span className="text-slate-400 font-normal">(optional — for account recovery)</span>
+                    Mobile number
                   </Label>
                   <div className="flex gap-2">
                     {/* Country code selector */}

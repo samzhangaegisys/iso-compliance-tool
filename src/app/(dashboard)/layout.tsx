@@ -23,11 +23,14 @@ import {
   Zap,
   X,
   FlaskConical,
+  Building2,
+  KeyRound,
+  UserCog,
+  CreditCard,
 } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -40,10 +43,11 @@ import {
   SidebarInset,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { Avatar } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { useSession, signOut as nextAuthSignOut } from "next-auth/react";
 import { PlanProvider, usePlan, type Plan } from "@/lib/plan-context";
+import { OrgProvider, useOrg } from "@/lib/org-context";
 
 const navItems = [
   {
@@ -109,6 +113,17 @@ const PLAN_CFG: Record<Plan, { label: string; color: string; badge: string; desc
   enterprise:   { label: "Enterprise",   color: "text-violet-700", badge: "bg-violet-100 text-violet-700 border-violet-200", description: "Unlimited standards & users" },
 };
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function OrgName() {
+  const org = useOrg();
+  return (
+    <p className="text-xs text-muted-foreground leading-none mt-0.5">
+      {org?.name ?? "Loading…"}
+    </p>
+  );
+}
+
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 
 function AppSidebar() {
@@ -123,9 +138,7 @@ function AppSidebar() {
           </div>
           <div>
             <p className="text-sm font-bold leading-none">ISOComply</p>
-            <p className="text-xs text-muted-foreground leading-none mt-0.5">
-              Acme Ltd
-            </p>
+            <OrgName />
           </div>
         </Link>
       </SidebarHeader>
@@ -159,22 +172,6 @@ function AppSidebar() {
           </SidebarGroup>
         ))}
       </SidebarContent>
-
-      <SidebarFooter>
-        <Separator className="mb-2" />
-        <div className="flex items-center gap-2 px-2 py-1">
-          <Avatar className="size-8 bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center">
-            JD
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium leading-none truncate">Jane Doe</p>
-            <p className="text-xs text-muted-foreground leading-none mt-0.5 truncate">Owner</p>
-          </div>
-          <Button variant="ghost" size="icon-sm">
-            <LogOut className="size-3.5" />
-          </Button>
-        </div>
-      </SidebarFooter>
     </Sidebar>
   );
 }
@@ -183,20 +180,40 @@ function AppSidebar() {
 
 function TopBar() {
   const { plan, setPlan } = usePlan();
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [planOpen, setPlanOpen] = useState(false);
+  const { data: session } = useSession();
+  const org = useOrg();
+  const [notifOpen, setNotifOpen]     = useState(false);
+  const [planOpen, setPlanOpen]       = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [orgMenuOpen, setOrgMenuOpen]   = useState(false);
   const [notifications, setNotifications] = useState(NOTIFICATIONS);
 
-  const notifRef = useRef<HTMLDivElement>(null);
-  const planRef  = useRef<HTMLDivElement>(null);
+  const isMasterAdmin = session?.user?.email === "admin@isocomply.io";
+  const orgName = org?.name ?? (isMasterAdmin ? "Admin" : "…");
+  const orgInitials = orgName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase() || "??";
+  const displayPlan = isMasterAdmin ? plan : (org?.plan ?? "starter");
+  const cfg = PLAN_CFG[displayPlan as Plan] ?? PLAN_CFG.starter;
+
+  const isOrgAdmin = isMasterAdmin || org?.role === "OWNER" || org?.role === "ADMIN";
+
+  const userName  = session?.user?.name ?? session?.user?.email ?? "User";
+  const userEmail = session?.user?.email ?? "";
+  const userInitials = userName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase() || "?";
+
+  const notifRef   = useRef<HTMLDivElement>(null);
+  const planRef    = useRef<HTMLDivElement>(null);
+  const userRef    = useRef<HTMLDivElement>(null);
+  const orgMenuRef = useRef<HTMLDivElement>(null);
 
   const unread = notifications.filter((n) => !n.read).length;
 
-  // Close dropdowns on outside click
+  // Close all dropdowns on outside click
   useEffect(() => {
     function handle(e: MouseEvent) {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
-      if (planRef.current  && !planRef.current.contains(e.target as Node))  setPlanOpen(false);
+      if (notifRef.current   && !notifRef.current.contains(e.target as Node))   setNotifOpen(false);
+      if (planRef.current    && !planRef.current.contains(e.target as Node))     setPlanOpen(false);
+      if (userRef.current    && !userRef.current.contains(e.target as Node))     setUserMenuOpen(false);
+      if (orgMenuRef.current && !orgMenuRef.current.contains(e.target as Node))  setOrgMenuOpen(false);
     }
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
@@ -215,8 +232,6 @@ function TopBar() {
     info:    <Info className="size-3.5 text-blue-500" />,
     success: <CheckCircle2 className="size-3.5 text-emerald-500" />,
   };
-
-  const cfg = PLAN_CFG[plan];
 
   return (
     <header className="flex h-14 items-center gap-3 border-b border-border px-4 sticky top-0 bg-background/95 backdrop-blur z-10">
@@ -282,57 +297,152 @@ function TopBar() {
         )}
       </div>
 
-      {/* Plan / org switcher */}
-      <div ref={planRef} className="relative">
-        <button
-          onClick={() => { setPlanOpen((o) => !o); setNotifOpen(false); }}
-          className="flex items-center gap-2 rounded-lg border border-border px-2.5 py-1.5 text-sm cursor-pointer hover:bg-muted transition-colors"
-        >
+      {/* Plan / org badge — master admin gets a plan switcher, regular users see read-only badge */}
+      {isMasterAdmin ? (
+        <div ref={planRef} className="relative">
+          <button
+            onClick={() => { setPlanOpen((o) => !o); setNotifOpen(false); }}
+            className="flex items-center gap-2 rounded-lg border border-border px-2.5 py-1.5 text-sm cursor-pointer hover:bg-muted transition-colors"
+          >
+            <div className="size-5 rounded bg-blue-100 text-blue-700 text-[10px] font-bold flex items-center justify-center">
+              {orgInitials}
+            </div>
+            <span className="text-sm font-medium hidden sm:block">{orgName}</span>
+            <ChevronDown className="size-3 text-muted-foreground" />
+            <span className={`text-[10px] font-semibold h-4 px-1.5 rounded border hidden sm:inline-flex items-center ${cfg.badge}`}>
+              {cfg.label}
+            </span>
+          </button>
+
+          {planOpen && (
+            <div className="absolute right-0 top-full mt-2 w-72 rounded-2xl border border-border bg-background shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-50">
+              <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border-b border-amber-100">
+                <FlaskConical className="size-3.5 text-amber-600 shrink-0" />
+                <p className="text-[11px] text-amber-700 font-medium">Admin — plan switcher</p>
+              </div>
+              <div className="p-2">
+                {(["starter", "professional", "enterprise"] as Plan[]).map((p) => {
+                  const c = PLAN_CFG[p];
+                  const active = plan === p;
+                  return (
+                    <button
+                      key={p}
+                      onClick={() => { setPlan(p); setPlanOpen(false); }}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors ${active ? "bg-blue-50 border border-blue-200" : "hover:bg-muted"}`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-semibold ${c.color}`}>{c.label}</p>
+                        <p className="text-[11px] text-muted-foreground">{c.description}</p>
+                      </div>
+                      {active && <Check className="size-4 text-blue-600 shrink-0" />}
+                      {p === "professional" && !active && (
+                        <Zap className="size-3.5 text-muted-foreground shrink-0" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="px-4 pb-3 pt-1">
+                <p className="text-[10px] text-muted-foreground text-center">
+                  Switching plan enforces feature limits across the app
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 rounded-lg border border-border px-2.5 py-1.5">
           <div className="size-5 rounded bg-blue-100 text-blue-700 text-[10px] font-bold flex items-center justify-center">
-            AL
+            {orgInitials}
           </div>
-          <span className="text-sm font-medium hidden sm:block">Acme Ltd</span>
-          <ChevronDown className="size-3 text-muted-foreground" />
+          <span className="text-sm font-medium hidden sm:block">{orgName}</span>
           <span className={`text-[10px] font-semibold h-4 px-1.5 rounded border hidden sm:inline-flex items-center ${cfg.badge}`}>
             {cfg.label}
           </span>
+        </div>
+      )}
+
+      {/* Org settings button — visible to OWNER and ADMIN only */}
+      {isOrgAdmin && (
+        <div ref={orgMenuRef} className="relative">
+          <Button
+            variant="ghost"
+            size="icon"
+            title="Organisation settings"
+            onClick={() => { setOrgMenuOpen((o) => !o); setUserMenuOpen(false); setNotifOpen(false); setPlanOpen(false); }}
+          >
+            <Building2 className="size-4" />
+          </Button>
+
+          {orgMenuOpen && (
+            <div className="absolute right-0 top-full mt-2 w-64 rounded-2xl border border-border bg-background shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-50">
+              <div className="px-4 py-3 border-b border-border">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Organisation Settings</p>
+                <p className="text-sm font-medium text-foreground mt-0.5">{orgName}</p>
+              </div>
+              <div className="p-1.5">
+                {[
+                  { label: "Organisation Profile", href: "/settings", icon: Building2 },
+                  { label: "Members & Roles",       href: "/team",     icon: Users },
+                  { label: "Subscription & Billing", href: "/settings", icon: CreditCard },
+                ].map(({ label, href, icon: Icon }) => (
+                  <Link key={label} href={href} onClick={() => setOrgMenuOpen(false)}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-foreground hover:bg-muted transition-colors">
+                    <Icon className="size-4 text-muted-foreground shrink-0" />
+                    {label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* User profile avatar button */}
+      <div ref={userRef} className="relative">
+        <button
+          onClick={() => { setUserMenuOpen((o) => !o); setOrgMenuOpen(false); setNotifOpen(false); setPlanOpen(false); }}
+          className="size-8 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center hover:ring-2 hover:ring-blue-300 transition-all focus:outline-none"
+          title={userName}
+        >
+          {userInitials}
         </button>
 
-        {planOpen && (
-          <div className="absolute right-0 top-full mt-2 w-72 rounded-2xl border border-border bg-background shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-50">
-            {/* Dev mode header */}
-            <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border-b border-amber-100">
-              <FlaskConical className="size-3.5 text-amber-600 shrink-0" />
-              <p className="text-[11px] text-amber-700 font-medium">Dev mode — plan switcher</p>
+        {userMenuOpen && (
+          <div className="absolute right-0 top-full mt-2 w-68 min-w-[260px] rounded-2xl border border-border bg-background shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-50">
+            {/* User info header */}
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-muted/30">
+              <div className="size-10 rounded-full bg-blue-600 text-white text-sm font-bold flex items-center justify-center shrink-0">
+                {userInitials}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground truncate">{userName}</p>
+                <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
+              </div>
             </div>
 
-            <div className="p-2">
-              {(["starter", "professional", "enterprise"] as Plan[]).map((p) => {
-                const c = PLAN_CFG[p];
-                const active = plan === p;
-                return (
-                  <button
-                    key={p}
-                    onClick={() => { setPlan(p); setPlanOpen(false); }}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors ${active ? "bg-blue-50 border border-blue-200" : "hover:bg-muted"}`}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-semibold ${c.color}`}>{c.label}</p>
-                      <p className="text-[11px] text-muted-foreground">{c.description}</p>
-                    </div>
-                    {active && <Check className="size-4 text-blue-600 shrink-0" />}
-                    {p === "professional" && !active && (
-                      <Zap className="size-3.5 text-muted-foreground shrink-0" />
-                    )}
-                  </button>
-                );
-              })}
+            {/* Menu items */}
+            <div className="p-1.5">
+              <Link href="/settings" onClick={() => setUserMenuOpen(false)}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-foreground hover:bg-muted transition-colors">
+                <UserCog className="size-4 text-muted-foreground shrink-0" />
+                Edit Profile
+              </Link>
+              <Link href="/settings#security" onClick={() => setUserMenuOpen(false)}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-foreground hover:bg-muted transition-colors">
+                <KeyRound className="size-4 text-muted-foreground shrink-0" />
+                Security & MFA
+              </Link>
             </div>
 
-            <div className="px-4 pb-3 pt-1">
-              <p className="text-[10px] text-muted-foreground text-center">
-                Switching plan enforces feature limits across the app
-              </p>
+            <div className="border-t border-border p-1.5">
+              <button
+                onClick={() => nextAuthSignOut({ callbackUrl: "/login" })}
+                className="flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-sm text-red-600 hover:bg-red-50 transition-colors"
+              >
+                <LogOut className="size-4 shrink-0" />
+                Log Out
+              </button>
             </div>
           </div>
         )}
@@ -349,14 +459,16 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <PlanProvider>
-      <SidebarProvider defaultOpen={true}>
-        <AppSidebar />
-        <SidebarInset>
-          <TopBar />
-          <main className="flex-1 p-6">{children}</main>
-        </SidebarInset>
-      </SidebarProvider>
-    </PlanProvider>
+    <OrgProvider>
+      <PlanProvider>
+        <SidebarProvider defaultOpen={true}>
+          <AppSidebar />
+          <SidebarInset>
+            <TopBar />
+            <main className="flex-1 p-6">{children}</main>
+          </SidebarInset>
+        </SidebarProvider>
+      </PlanProvider>
+    </OrgProvider>
   );
 }

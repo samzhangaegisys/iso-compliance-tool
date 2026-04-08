@@ -25,8 +25,6 @@ import {
   RefreshCw,
   Filter,
   AlertTriangle,
-  CheckCircle2,
-  Clock,
   Link2,
   Loader2,
   BookOpen,
@@ -36,10 +34,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ISO_STANDARDS } from "@/lib/iso-data";
+import { useOrg } from "@/lib/org-context";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type EvidenceStatus = "approved" | "pending_review" | "needs_update";
+type DataClassification = "PUBLIC" | "INTERNAL" | "CONFIDENTIAL" | "RESTRICTED";
 
 interface EvidenceItem {
   id: string;
@@ -55,9 +54,8 @@ interface EvidenceItem {
   taskTitle?: string;
   uploadedBy: string;
   uploadedDate: string;
-  reviewedBy?: string;
-  reviewedDate?: string;
-  status: EvidenceStatus;
+  classification: DataClassification;
+  fileUrl?: string | null;
   description: string;
   tags: string[];
   source: "computer" | "onedrive" | "googledrive";
@@ -100,16 +98,16 @@ const GDRIVE_FILES = [
 ];
 
 const seedEvidence: EvidenceItem[] = [
-  { id: "e1", name: "Information Security Policy v2.1.pdf", type: "PDF", size: "245 KB", standard: "ISO 27001", standardCode: "ISO27001", clause: "A.5", control: "A.5.1", controlTitle: "Policies for information security", taskId: "1", taskTitle: "Complete risk assessment documentation", uploadedBy: "Sarah K.", uploadedDate: "Apr 3, 2026", status: "approved", reviewedBy: "Admin", reviewedDate: "Apr 5, 2026", description: "Board-approved ISMS policy including scope, objectives, and management commitment statement.", tags: ["policy", "ISMS", "board-approved"], source: "computer" },
-  { id: "e2", name: "Access Control Matrix v3-DRAFT.xlsx", type: "XLSX", size: "310 KB", standard: "ISO 27001", standardCode: "ISO27001", clause: "A.5", control: "A.5.15", controlTitle: "Access control", taskId: "6", taskTitle: "Update access control matrix", uploadedBy: "Sarah K.", uploadedDate: "Apr 2, 2026", status: "pending_review", description: "Updated user access matrix with role definitions and approvals pending.", tags: ["access-control", "draft"], source: "computer" },
-  { id: "e3", name: "Security Awareness Training Records Q1 2026.pdf", type: "PDF", size: "1.2 MB", standard: "ISO 27001", standardCode: "ISO27001", clause: "A.6", control: "A.6.3", controlTitle: "Information security awareness, education and training", uploadedBy: "Tom R.", uploadedDate: "Apr 1, 2026", status: "approved", reviewedBy: "Sarah K.", reviewedDate: "Apr 3, 2026", description: "Completion records for Q1 2026 security awareness training — 47 of 48 staff completed.", tags: ["training", "awareness", "records"], source: "onedrive" },
-  { id: "e4", name: "Endpoint MDM Enrollment Report.pdf", type: "PDF", size: "890 KB", standard: "ISO 27001", standardCode: "ISO27001", clause: "A.8", control: "A.8.1", controlTitle: "User endpoint devices", uploadedBy: "James O.", uploadedDate: "Mar 29, 2026", status: "approved", reviewedBy: "Admin", reviewedDate: "Mar 31, 2026", description: "Microsoft Intune enrollment report showing 98% endpoint compliance.", tags: ["MDM", "endpoints", "Intune"], source: "computer" },
-  { id: "e5", name: "Vulnerability Scan Report March 2026.pdf", type: "PDF", size: "2.1 MB", standard: "ISO 27001", standardCode: "ISO27001", clause: "A.8", control: "A.8.8", controlTitle: "Management of technical vulnerabilities", uploadedBy: "James O.", uploadedDate: "Mar 28, 2026", status: "needs_update", description: "Qualys scan report — 2 HIGH findings require patch evidence before approval.", tags: ["vulnerability", "scan", "Qualys"], source: "computer" },
-  { id: "e6", name: "Quality Manual v5.0.docx", type: "DOCX", size: "560 KB", standard: "ISO 9001", standardCode: "ISO9001", clause: "5", control: "5.2", controlTitle: "Quality policy", uploadedBy: "Sarah K.", uploadedDate: "Mar 28, 2026", status: "approved", reviewedBy: "Admin", reviewedDate: "Apr 1, 2026", description: "Current quality manual including quality policy signed by CEO.", tags: ["quality", "manual", "policy"], source: "googledrive" },
-  { id: "e7", name: "Risk Register Q1 2026.xlsx", type: "XLSX", size: "198 KB", standard: "ISO 9001", standardCode: "ISO9001", clause: "6", control: "6.1", controlTitle: "Actions to address risks and opportunities", uploadedBy: "Tom R.", uploadedDate: "Mar 22, 2026", status: "approved", reviewedBy: "Sarah K.", reviewedDate: "Mar 25, 2026", description: "Q1 2026 risk register with updated likelihood/impact scores and treatment actions.", tags: ["risk", "register", "Q1"], source: "computer" },
-  { id: "e8", name: "Supplier Evaluation Forms 2026.xlsx", type: "XLSX", size: "145 KB", standard: "ISO 9001", standardCode: "ISO9001", clause: "8", control: "8.4", controlTitle: "Control of externally provided processes", uploadedBy: "James O.", uploadedDate: "Mar 20, 2026", status: "pending_review", description: "Annual supplier evaluation forms for all Tier 1 suppliers.", tags: ["supplier", "evaluation"], source: "onedrive" },
-  { id: "e9", name: "Environmental Aspects Register v4.xlsx", type: "XLSX", size: "210 KB", standard: "ISO 14001", standardCode: "ISO14001", clause: "6", control: "6.1.2", controlTitle: "Environmental aspects", taskId: "2", taskTitle: "Update environmental aspects register", uploadedBy: "Tom R.", uploadedDate: "Mar 15, 2026", status: "needs_update", description: "Environmental aspects and impacts register — pending Q1 operational updates.", tags: ["environmental", "aspects", "register"], source: "computer" },
-  { id: "e10", name: "Emergency Response Plan 2026.pdf", type: "PDF", size: "890 KB", standard: "ISO 14001", standardCode: "ISO14001", clause: "8", control: "8.2", controlTitle: "Emergency preparedness and response", uploadedBy: "Tom R.", uploadedDate: "Feb 28, 2026", status: "approved", reviewedBy: "Admin", reviewedDate: "Mar 5, 2026", description: "Updated emergency response plan including new warehouse procedures.", tags: ["emergency", "response", "plan"], source: "computer" },
+  { id: "e1", name: "Information Security Policy v2.1.pdf", type: "PDF", size: "245 KB", standard: "ISO 27001", standardCode: "ISO27001", clause: "A.5", control: "A.5.1", controlTitle: "Policies for information security", taskId: "1", taskTitle: "Complete risk assessment documentation", uploadedBy: "Sarah K.", uploadedDate: "Apr 3, 2026", classification: "INTERNAL", fileUrl: null, description: "Board-approved ISMS policy including scope, objectives, and management commitment statement.", tags: ["policy", "ISMS", "board-approved"], source: "computer" },
+  { id: "e2", name: "Access Control Matrix v3-DRAFT.xlsx", type: "XLSX", size: "310 KB", standard: "ISO 27001", standardCode: "ISO27001", clause: "A.5", control: "A.5.15", controlTitle: "Access control", taskId: "6", taskTitle: "Update access control matrix", uploadedBy: "Sarah K.", uploadedDate: "Apr 2, 2026", classification: "CONFIDENTIAL", fileUrl: null, description: "Updated user access matrix with role definitions and approvals pending.", tags: ["access-control", "draft"], source: "computer" },
+  { id: "e3", name: "Security Awareness Training Records Q1 2026.pdf", type: "PDF", size: "1.2 MB", standard: "ISO 27001", standardCode: "ISO27001", clause: "A.6", control: "A.6.3", controlTitle: "Information security awareness, education and training", uploadedBy: "Tom R.", uploadedDate: "Apr 1, 2026", classification: "INTERNAL", fileUrl: null, description: "Completion records for Q1 2026 security awareness training — 47 of 48 staff completed.", tags: ["training", "awareness", "records"], source: "onedrive" },
+  { id: "e4", name: "Endpoint MDM Enrollment Report.pdf", type: "PDF", size: "890 KB", standard: "ISO 27001", standardCode: "ISO27001", clause: "A.8", control: "A.8.1", controlTitle: "User endpoint devices", uploadedBy: "James O.", uploadedDate: "Mar 29, 2026", classification: "INTERNAL", fileUrl: null, description: "Microsoft Intune enrollment report showing 98% endpoint compliance.", tags: ["MDM", "endpoints", "Intune"], source: "computer" },
+  { id: "e5", name: "Vulnerability Scan Report March 2026.pdf", type: "PDF", size: "2.1 MB", standard: "ISO 27001", standardCode: "ISO27001", clause: "A.8", control: "A.8.8", controlTitle: "Management of technical vulnerabilities", uploadedBy: "James O.", uploadedDate: "Mar 28, 2026", classification: "RESTRICTED", fileUrl: null, description: "Qualys scan report — 2 HIGH findings require patch evidence before approval.", tags: ["vulnerability", "scan", "Qualys"], source: "computer" },
+  { id: "e6", name: "Quality Manual v5.0.docx", type: "DOCX", size: "560 KB", standard: "ISO 9001", standardCode: "ISO9001", clause: "5", control: "5.2", controlTitle: "Quality policy", uploadedBy: "Sarah K.", uploadedDate: "Mar 28, 2026", classification: "PUBLIC", fileUrl: null, description: "Current quality manual including quality policy signed by CEO.", tags: ["quality", "manual", "policy"], source: "googledrive" },
+  { id: "e7", name: "Risk Register Q1 2026.xlsx", type: "XLSX", size: "198 KB", standard: "ISO 9001", standardCode: "ISO9001", clause: "6", control: "6.1", controlTitle: "Actions to address risks and opportunities", uploadedBy: "Tom R.", uploadedDate: "Mar 22, 2026", classification: "CONFIDENTIAL", fileUrl: null, description: "Q1 2026 risk register with updated likelihood/impact scores and treatment actions.", tags: ["risk", "register", "Q1"], source: "computer" },
+  { id: "e8", name: "Supplier Evaluation Forms 2026.xlsx", type: "XLSX", size: "145 KB", standard: "ISO 9001", standardCode: "ISO9001", clause: "8", control: "8.4", controlTitle: "Control of externally provided processes", uploadedBy: "James O.", uploadedDate: "Mar 20, 2026", classification: "INTERNAL", fileUrl: null, description: "Annual supplier evaluation forms for all Tier 1 suppliers.", tags: ["supplier", "evaluation"], source: "onedrive" },
+  { id: "e9", name: "Environmental Aspects Register v4.xlsx", type: "XLSX", size: "210 KB", standard: "ISO 14001", standardCode: "ISO14001", clause: "6", control: "6.1.2", controlTitle: "Environmental aspects", taskId: "2", taskTitle: "Update environmental aspects register", uploadedBy: "Tom R.", uploadedDate: "Mar 15, 2026", classification: "INTERNAL", fileUrl: null, description: "Environmental aspects and impacts register — pending Q1 operational updates.", tags: ["environmental", "aspects", "register"], source: "computer" },
+  { id: "e10", name: "Emergency Response Plan 2026.pdf", type: "PDF", size: "890 KB", standard: "ISO 14001", standardCode: "ISO14001", clause: "8", control: "8.2", controlTitle: "Emergency preparedness and response", uploadedBy: "Tom R.", uploadedDate: "Feb 28, 2026", classification: "PUBLIC", fileUrl: null, description: "Updated emergency response plan including new warehouse procedures.", tags: ["emergency", "response", "plan"], source: "computer" },
 ];
 
 // ── Helper functions ──────────────────────────────────────────────────────────
@@ -138,16 +136,12 @@ function getFileTypeIconColor(type: string): string {
   }
 }
 
-function getStatusConfig(status: EvidenceStatus) {
-  switch (status) {
-    case "approved":
-      return { label: "Approved", icon: CheckCircle2, className: "bg-emerald-100 text-emerald-700 border-emerald-200" };
-    case "pending_review":
-      return { label: "Pending Review", icon: Clock, className: "bg-amber-100 text-amber-700 border-amber-200" };
-    case "needs_update":
-      return { label: "Needs Update", icon: AlertTriangle, className: "bg-red-100 text-red-700 border-red-200" };
-  }
-}
+const CLASSIFICATION_CFG: Record<DataClassification, { label: string; className: string }> = {
+  PUBLIC:       { label: "Public",       className: "bg-green-100 text-green-700 border-green-200" },
+  INTERNAL:     { label: "Internal",     className: "bg-blue-100 text-blue-700 border-blue-200" },
+  CONFIDENTIAL: { label: "Confidential", className: "bg-amber-100 text-amber-700 border-amber-200" },
+  RESTRICTED:   { label: "Restricted",   className: "bg-red-100 text-red-700 border-red-200" },
+};
 
 function SourceIcon({ source }: { source: EvidenceItem["source"] }) {
   if (source === "computer") return <HardDrive className="size-3 text-slate-400" />;
@@ -155,14 +149,12 @@ function SourceIcon({ source }: { source: EvidenceItem["source"] }) {
   return <Cloud className="size-3 text-red-400" />;
 }
 
-// ── Status badge ──────────────────────────────────────────────────────────────
+// ── Classification badge ──────────────────────────────────────────────────────
 
-function StatusBadge({ status }: { status: EvidenceStatus }) {
-  const cfg = getStatusConfig(status);
-  const Icon = cfg.icon;
+function ClassificationBadge({ classification }: { classification: DataClassification }) {
+  const cfg = CLASSIFICATION_CFG[classification];
   return (
-    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded border ${cfg.className}`}>
-      <Icon className="size-2.5" />
+    <span className={`inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded border ${cfg.className}`}>
       {cfg.label}
     </span>
   );
@@ -170,7 +162,7 @@ function StatusBadge({ status }: { status: EvidenceStatus }) {
 
 // ── Left Sidebar ──────────────────────────────────────────────────────────────
 
-type QuickFilter = "all" | "recent" | "my_uploads" | "needs_review";
+type QuickFilter = "all" | "recent" | "my_uploads" | "confidential";
 
 interface SidebarNavProps {
   quickFilter: QuickFilter;
@@ -214,7 +206,7 @@ function SidebarNav({
     { id: "all", label: "All Evidence", icon: BookOpen },
     { id: "recent", label: "Recent", icon: Calendar },
     { id: "my_uploads", label: "My Uploads", icon: User },
-    { id: "needs_review", label: "Needs Review", icon: AlertTriangle },
+    { id: "confidential", label: "Confidential", icon: Shield },
   ];
 
   return (
@@ -242,9 +234,9 @@ function SidebarNav({
               >
                 <Icon className="size-3.5 shrink-0" />
                 <span className="truncate">{label}</span>
-                {id === "needs_review" && (
+                {id === "confidential" && (
                   <span className="ml-auto text-[10px] font-bold bg-red-100 text-red-700 px-1 rounded">
-                    {evidence.filter((e) => e.status === "needs_update" || e.status === "pending_review").length}
+                    {evidence.filter((e) => e.classification === "CONFIDENTIAL" || e.classification === "RESTRICTED").length}
                   </span>
                 )}
               </button>
@@ -395,7 +387,7 @@ function EvidenceCard({
           )}
 
           <div className="flex items-center justify-between gap-1 pt-0.5">
-            <StatusBadge status={item.status} />
+            <ClassificationBadge classification={item.classification} />
             <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
               <SourceIcon source={item.source} />
               <span>{item.uploadedDate}</span>
@@ -454,7 +446,7 @@ function EvidenceRow({
         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${getFileTypeColor(item.type)}`}>
           {item.type}
         </span>
-        <StatusBadge status={item.status} />
+        <ClassificationBadge classification={item.classification} />
         <SourceIcon source={item.source} />
       </div>
     </div>
@@ -472,14 +464,29 @@ const MOCK_REVISIONS = [
 function PreviewPanel({
   item,
   onClose,
+  canEdit,
+  panelWidth,
+  onResizeStart,
 }: {
   item: EvidenceItem;
   onClose: () => void;
+  canEdit: boolean;
+  panelWidth: number;
+  onResizeStart: (e: React.MouseEvent) => void;
 }) {
-  const statusCfg = getStatusConfig(item.status);
+  const [editMode, setEditMode] = useState(false);
+  const [editName, setEditName] = useState(item.name);
+  const [editDescription, setEditDescription] = useState(item.description);
+  const [editClassification, setEditClassification] = useState<DataClassification>(item.classification);
 
   return (
-    <div className="w-90 shrink-0 border-l border-border bg-background flex flex-col overflow-hidden">
+    <div className="shrink-0 border-l border-border bg-background flex flex-col overflow-hidden relative" style={{ width: panelWidth }}>
+      {/* Resize handle — drag left edge */}
+      <div
+        onMouseDown={onResizeStart}
+        className="absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize z-10 hover:bg-blue-400/40 active:bg-blue-500/60 transition-colors"
+      />
+
       {/* Header */}
       <div className="flex items-start gap-2 px-4 py-3 border-b border-border">
         <div className="flex-1 min-w-0">
@@ -489,20 +496,80 @@ function PreviewPanel({
               {item.name}
             </p>
           </div>
-          <div className="mt-1">
-            <StatusBadge status={item.status} />
-          </div>
         </div>
-        <button
-          onClick={onClose}
-          className="shrink-0 size-6 rounded hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <X className="size-3.5" />
-        </button>
+        <div className="flex items-center gap-1 shrink-0">
+          {canEdit && !editMode && (
+            <button
+              onClick={() => {
+                setEditName(item.name);
+                setEditDescription(item.description);
+                setEditClassification(item.classification);
+                setEditMode(true);
+              }}
+              className="size-6 rounded hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+              title="Edit"
+            >
+              <Eye className="size-3.5" />
+            </button>
+          )}
+          <button
+            onClick={onClose}
+            className="size-6 rounded hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
       </div>
 
       {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto">
+        {editMode ? (
+          <div className="px-4 py-3 space-y-3">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+              Edit Evidence
+            </p>
+            <div>
+              <label className="text-xs font-medium text-foreground block mb-1">Name</label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="w-full text-sm border border-border rounded-lg px-2.5 py-1.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-foreground block mb-1">Description</label>
+              <textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                rows={4}
+                className="w-full text-sm border border-border rounded-lg px-2.5 py-1.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-foreground block mb-1">Classification</label>
+              <select
+                value={editClassification}
+                onChange={(e) => setEditClassification(e.target.value as DataClassification)}
+                className="w-full text-sm border border-border rounded-lg px-2.5 py-1.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="PUBLIC">Public</option>
+                <option value="INTERNAL">Internal</option>
+                <option value="CONFIDENTIAL">Confidential</option>
+                <option value="RESTRICTED">Restricted</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <Button size="sm" onClick={() => setEditMode(false)}>
+                Save
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setEditMode(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
         {/* File details */}
         <section className="px-4 py-3 border-b border-border">
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
@@ -536,19 +603,20 @@ function PreviewPanel({
               <dt className="text-xs text-muted-foreground">Uploaded</dt>
               <dd className="text-xs text-foreground">{item.uploadedDate}</dd>
             </div>
-            {item.reviewedBy && (
-              <>
-                <div className="flex justify-between">
-                  <dt className="text-xs text-muted-foreground">Reviewed by</dt>
-                  <dd className="text-xs text-foreground">{item.reviewedBy}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-xs text-muted-foreground">Reviewed</dt>
-                  <dd className="text-xs text-foreground">{item.reviewedDate}</dd>
-                </div>
-              </>
-            )}
+            <div className="flex justify-between items-center">
+              <dt className="text-xs text-muted-foreground">Classification</dt>
+              <dd><ClassificationBadge classification={item.classification} /></dd>
+            </div>
           </dl>
+          {item.fileUrl ? (
+            <a href={item.fileUrl} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-2 w-full px-3 py-2 rounded-lg border border-border hover:bg-muted text-sm transition-colors mt-2">
+              <Download className="size-4 text-blue-600 shrink-0" />
+              <span>Open / Download file</span>
+            </a>
+          ) : (
+            <p className="text-xs text-muted-foreground italic mt-2">No file attached — upload a file to enable download</p>
+          )}
         </section>
 
         {/* Linked standard & control */}
@@ -637,6 +705,8 @@ function PreviewPanel({
             ))}
           </div>
         </section>
+          </>
+        )}
       </div>
 
       {/* Action buttons */}
@@ -1166,7 +1236,72 @@ function UploadModal({ onClose }: { onClose: () => void }) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function EvidencePage() {
-  const [evidence] = useState<EvidenceItem[]>(seedEvidence);
+  const org = useOrg();
+  const canEdit = org?.role === "OWNER" || org?.role === "ADMIN" || org?.role === "MEMBER";
+
+  const [panelWidth, setPanelWidth] = useState(360);
+  const isDragging = useRef(false);
+  const dragStartX = useRef(0);
+  const dragStartW = useRef(360);
+
+  const onResizeStart = useCallback((e: React.MouseEvent) => {
+    isDragging.current = true;
+    dragStartX.current = e.clientX;
+    dragStartW.current = panelWidth;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    function onMove(ev: MouseEvent) {
+      if (!isDragging.current) return;
+      const delta = dragStartX.current - ev.clientX;
+      setPanelWidth(Math.min(Math.max(dragStartW.current + delta, 280), 700));
+    }
+    function onUp() {
+      isDragging.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    }
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, [panelWidth]);
+
+  const [evidence, setEvidence] = useState<EvidenceItem[]>([]);
+  const [loadingEvidence, setLoadingEvidence] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/evidence")
+      .then((r) => r.json())
+      .then((data) => {
+        const mapped: EvidenceItem[] = (data.evidence ?? []).map((e: {
+          id: string; name: string; description: string; fileType: string | null;
+          fileSize: number | null; uploadedBy: string; createdAt: string;
+          controlRef: string; controlTitle: string; standard: string; projectName: string;
+          classification?: string; fileUrl?: string | null;
+        }) => ({
+          id: e.id,
+          name: e.name,
+          type: e.fileType ?? "document",
+          size: e.fileSize ? `${(e.fileSize / 1024).toFixed(0)} KB` : "—",
+          uploadedBy: e.uploadedBy,
+          uploadedDate: new Date(e.createdAt).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }),
+          classification: (e.classification as DataClassification) ?? "INTERNAL",
+          fileUrl: e.fileUrl ?? null,
+          standard: e.standard,
+          standardCode: "",
+          clause: "",
+          control: e.controlRef,
+          controlTitle: e.controlTitle,
+          tags: [],
+          source: "computer" as const,
+          description: e.description,
+        }));
+        setEvidence(mapped);
+        setLoadingEvidence(false);
+      })
+      .catch(() => setLoadingEvidence(false));
+  }, []);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [search, setSearch] = useState("");
   const [selectedItem, setSelectedItem] = useState<EvidenceItem | null>(null);
@@ -1214,8 +1349,8 @@ export default function EvidencePage() {
       if (quickFilter === "my_uploads") {
         return item.uploadedBy === "Sarah K.";
       }
-      if (quickFilter === "needs_review") {
-        return item.status === "needs_update" || item.status === "pending_review";
+      if (quickFilter === "confidential") {
+        return item.classification === "CONFIDENTIAL" || item.classification === "RESTRICTED";
       }
     }
 
@@ -1234,7 +1369,7 @@ export default function EvidencePage() {
       all: "All Evidence",
       recent: "Recent",
       my_uploads: "My Uploads",
-      needs_review: "Needs Review",
+      confidential: "Confidential",
     };
     return labels[quickFilter];
   }
@@ -1358,6 +1493,9 @@ export default function EvidencePage() {
         <PreviewPanel
           item={selectedItem}
           onClose={() => setSelectedItem(null)}
+          canEdit={canEdit}
+          panelWidth={panelWidth}
+          onResizeStart={onResizeStart}
         />
       )}
 

@@ -5,7 +5,7 @@ import { verifySync } from "otplib";
 import { getMfaRecord } from "./mfa-store";
 import { verifyTurnstile } from "./turnstile";
 import { verifyPassword } from "./password";
-import { getPrisma } from "./prisma";
+import { prisma } from "./prisma";
 
 // Master admin account — internal access only, never exposed to users
 const MASTER_EMAIL    = "admin@isocomply.io";
@@ -44,7 +44,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         // Look up user in database
-        const prisma = getPrisma();
         if (!prisma) return null;
 
         const user = await prisma.user.findUnique({

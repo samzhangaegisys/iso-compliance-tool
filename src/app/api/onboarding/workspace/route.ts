@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getPrisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 
 function toSlug(name: string): string {
   return name
@@ -9,11 +9,11 @@ function toSlug(name: string): string {
     .slice(0, 50);
 }
 
-async function uniqueSlug(prisma: ReturnType<typeof getPrisma>, base: string): Promise<string> {
+async function uniqueSlug(base: string): Promise<string> {
   let slug = base;
   let attempt = 0;
   while (true) {
-    const exists = await prisma.organisation.findUnique({ where: { slug } });
+    const exists = await prisma!.organisation.findUnique({ where: { slug } });
     if (!exists) return slug;
     attempt++;
     slug = `${base}-${attempt}`;
@@ -21,7 +21,6 @@ async function uniqueSlug(prisma: ReturnType<typeof getPrisma>, base: string): P
 }
 
 export async function POST(req: Request) {
-  const prisma = getPrisma();
   if (!prisma) {
     return NextResponse.json({ error: "Database not available" }, { status: 503 });
   }
@@ -50,7 +49,7 @@ export async function POST(req: Request) {
 
   // Create organisation
   const baseSlug = toSlug(orgName) || "workspace";
-  const slug = await uniqueSlug(prisma, baseSlug);
+  const slug = await uniqueSlug(baseSlug);
 
   const org = await prisma.organisation.create({
     data: {
@@ -62,7 +61,7 @@ export async function POST(req: Request) {
     },
   });
 
-  // Create free subscription
+  // Create subscription
   const planEnum = plan?.toUpperCase?.() === "PROFESSIONAL"
     ? "PROFESSIONAL"
     : plan?.toUpperCase?.() === "ENTERPRISE"
@@ -73,7 +72,7 @@ export async function POST(req: Request) {
     data: {
       orgId: org.id,
       plan: planEnum,
-      status: planEnum === "FREE" ? "ACTIVE" : "ACTIVE",
+      status: "ACTIVE",
     },
   });
 
