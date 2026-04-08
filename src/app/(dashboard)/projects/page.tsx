@@ -1,0 +1,806 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import {
+  Plus, Calendar, ArrowRight, FolderOpen, CheckCircle2, Clock,
+  PauseCircle, Archive, X, ChevronRight, ChevronDown, Target,
+  ShieldCheck, FileCheck2, BarChart3, ListTodo, Search, Lightbulb,
+  Building2, Code2, ClipboardList, TrendingUp, Users, BookOpen,
+  AlertTriangle, Rocket, Check,
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { usePlan } from "@/lib/plan-context";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+type ProjectStatus = "ACTIVE" | "PAUSED" | "COMPLETED" | "ARCHIVED";
+
+interface Project {
+  id: string;
+  name: string;
+  standard: string;
+  standardCode: string;
+  status: ProjectStatus;
+  score: number;
+  implemented: number;
+  total: number;
+  targetDate: string;
+  lastUpdated: string;
+  owner: string;
+  phase: number; // 1–6
+  nextAction: string;
+}
+
+// ── Seed data ─────────────────────────────────────────────────────────────────
+
+const initialProjects: Project[] = [
+  {
+    id: "proj-1", name: "ISO 27001 Certification 2026", standard: "ISO/IEC 27001:2022", standardCode: "ISO27001",
+    status: "ACTIVE", score: 68, implemented: 63, total: 93, targetDate: "2026-09-30",
+    lastUpdated: "2 hours ago", owner: "Sarah K.", phase: 3,
+    nextAction: "Complete risk assessment documentation",
+  },
+  {
+    id: "proj-2", name: "Quality Management Programme", standard: "ISO 9001:2015", standardCode: "ISO9001",
+    status: "ACTIVE", score: 84, implemented: 71, total: 85, targetDate: "2026-06-15",
+    lastUpdated: "Yesterday", owner: "James O.", phase: 4,
+    nextAction: "Conduct internal audit for clause 9.2",
+  },
+  {
+    id: "proj-3", name: "Environmental Compliance Initiative", standard: "ISO 14001:2015", standardCode: "ISO14001",
+    status: "PAUSED", score: 42, implemented: 26, total: 62, targetDate: "2026-12-31",
+    lastUpdated: "1 week ago", owner: "Tom R.", phase: 2,
+    nextAction: "Resume gap analysis — 20 controls not yet assessed",
+  },
+  {
+    id: "proj-4", name: "OH&S Certification Renewal", standard: "ISO 45001:2018", standardCode: "ISO45001",
+    status: "COMPLETED", score: 91, implemented: 67, total: 74, targetDate: "2026-03-01",
+    lastUpdated: "3 weeks ago", owner: "Sarah K.", phase: 6,
+    nextAction: "Schedule next surveillance audit",
+  },
+  {
+    id: "proj-5", name: "AI Governance Framework", standard: "ISO/IEC 42001:2023", standardCode: "ISO42001",
+    status: "ACTIVE", score: 23, implemented: 13, total: 58, targetDate: "2027-03-31",
+    lastUpdated: "5 days ago", owner: "Admin", phase: 2,
+    nextAction: "Document all in-scope AI systems",
+  },
+];
+
+// ── Standards catalogue (for new project modal) ────────────────────────────────
+
+const STANDARDS_CATALOGUE = [
+  {
+    code: "ISO27001", name: "ISO/IEC 27001:2022", short: "Information Security",
+    description: "Protect your data, manage cyber risk, and prove security to customers and partners. The most commonly required certification for enterprise contracts.",
+    controls: 93, certTime: "6–12 months",
+    industries: ["Technology", "Finance", "Healthcare", "Government"],
+    color: "border-blue-400 bg-blue-50", badge: "bg-blue-600", icon: ShieldCheck,
+    popular: true,
+  },
+  {
+    code: "ISO9001", name: "ISO 9001:2015", short: "Quality Management",
+    description: "Demonstrate consistent quality in your products and services. Reduces defects, improves customer satisfaction, and opens doors to new markets.",
+    controls: 85, certTime: "4–9 months",
+    industries: ["Manufacturing", "Construction", "Professional Services"],
+    color: "border-green-400 bg-green-50", badge: "bg-green-600", icon: CheckCircle2,
+    popular: false,
+  },
+  {
+    code: "ISO14001", name: "ISO 14001:2015", short: "Environmental Management",
+    description: "Manage your environmental impacts, reduce waste, and meet sustainability requirements from customers, investors, and regulators.",
+    controls: 62, certTime: "4–8 months",
+    industries: ["Manufacturing", "Construction", "Logistics", "Energy"],
+    color: "border-emerald-400 bg-emerald-50", badge: "bg-emerald-600", icon: FileCheck2,
+    popular: false,
+  },
+  {
+    code: "ISO45001", name: "ISO 45001:2018", short: "Occupational Health & Safety",
+    description: "Protect your people, reduce workplace incidents, and demonstrate duty of care. Often required for government and large enterprise contracts.",
+    controls: 74, certTime: "4–9 months",
+    industries: ["Construction", "Manufacturing", "Mining", "Healthcare"],
+    color: "border-amber-400 bg-amber-50", badge: "bg-amber-600", icon: Target,
+    popular: false,
+  },
+  {
+    code: "ISO42001", name: "ISO/IEC 42001:2023", short: "AI Management",
+    description: "The world's first AI management standard. Govern AI risk, bias, and transparency. Increasingly required for AI-enabled products and services.",
+    controls: 58, certTime: "6–10 months",
+    industries: ["Technology", "Finance", "Healthcare", "Legal"],
+    color: "border-purple-400 bg-purple-50", badge: "bg-purple-600", icon: Lightbulb,
+    popular: false,
+  },
+];
+
+const TEAM_MEMBERS = ["Sarah K.", "James O.", "Tom R.", "Admin"];
+
+// ── Journey phases ─────────────────────────────────────────────────────────────
+
+const JOURNEY_PHASES = [
+  { n: 1, label: "Scope & Standard",    desc: "Define what's in scope and choose your ISO standard",       href: "/projects",  icon: BookOpen     },
+  { n: 2, label: "Gap Analysis",        desc: "Identify where you are vs. where you need to be",            href: "/reports",   icon: Search       },
+  { n: 3, label: "Remediation Plan",    desc: "Create tasks, assign owners, set deadlines",                 href: "/tasks",     icon: ListTodo     },
+  { n: 4, label: "Implement & Collect", desc: "Implement controls and upload evidence",                     href: "/evidence",  icon: FileCheck2   },
+  { n: 5, label: "Internal Audit",      desc: "Audit your own compliance before the certifier visits",      href: "/tasks",     icon: ClipboardList},
+  { n: 6, label: "Certification",       desc: "Stage 1 & 2 external audit — get your certificate",         href: "/reports",   icon: CheckCircle2 },
+];
+
+// ── Status config ─────────────────────────────────────────────────────────────
+
+const statusConfig: Record<ProjectStatus, { label: string; icon: React.ElementType; cls: string; dot: string }> = {
+  ACTIVE:    { label: "Active",    icon: Clock,        cls: "bg-blue-100 text-blue-700",    dot: "bg-blue-500"    },
+  PAUSED:    { label: "Paused",    icon: PauseCircle,  cls: "bg-amber-100 text-amber-700",  dot: "bg-amber-400"   },
+  COMPLETED: { label: "Certified", icon: CheckCircle2, cls: "bg-green-100 text-green-700",  dot: "bg-green-500"   },
+  ARCHIVED:  { label: "Archived",  icon: Archive,      cls: "bg-slate-100 text-slate-600",  dot: "bg-slate-300"   },
+};
+
+const standardTheme: Record<string, { text: string; bg: string; bar: string; ring: string }> = {
+  ISO27001: { text: "text-blue-700",    bg: "bg-blue-50",    bar: "#3b82f6", ring: "#3b82f6" },
+  ISO9001:  { text: "text-green-700",   bg: "bg-green-50",   bar: "#22c55e", ring: "#22c55e" },
+  ISO14001: { text: "text-emerald-700", bg: "bg-emerald-50", bar: "#10b981", ring: "#10b981" },
+  ISO45001: { text: "text-amber-700",   bg: "bg-amber-50",   bar: "#f59e0b", ring: "#f59e0b" },
+  ISO42001: { text: "text-purple-700",  bg: "bg-purple-50",  bar: "#a855f7", ring: "#a855f7" },
+};
+
+function scoreRingColor(score: number) {
+  if (score >= 90) return "#10b981";
+  if (score >= 70) return "#3b82f6";
+  if (score >= 40) return "#f59e0b";
+  return "#ef4444";
+}
+
+function scoreTextColor(score: number) {
+  if (score >= 90) return "text-emerald-600";
+  if (score >= 70) return "text-blue-600";
+  if (score >= 40) return "text-amber-600";
+  return "text-red-600";
+}
+
+function daysUntil(iso: string) {
+  const d = new Date(iso).getTime() - Date.now();
+  const days = Math.ceil(d / 86400000);
+  if (days < 0) return { label: `${Math.abs(days)}d overdue`, cls: "text-red-600" };
+  if (days <= 30) return { label: `${days}d left`, cls: "text-amber-600" };
+  if (days <= 90) return { label: `${days}d left`, cls: "text-blue-600" };
+  return { label: `${days}d left`, cls: "text-slate-500" };
+}
+
+function formatDate(iso: string) {
+  try { return new Date(iso).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" }); }
+  catch { return iso; }
+}
+
+// ── SVG Ring chart ────────────────────────────────────────────────────────────
+
+function RingChart({ score, size = 64, stroke = 7, color }: { score: number; size?: number; stroke?: number; color: string }) {
+  const r  = (size - stroke) / 2;
+  const cx = size / 2;
+  const cy = size / 2;
+  const c  = 2 * Math.PI * r;
+  return (
+    <svg width={size} height={size} className="-rotate-90" aria-hidden>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#e2e8f0" strokeWidth={stroke} />
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke={color} strokeWidth={stroke}
+        strokeDasharray={`${(score / 100) * c} ${(1 - score / 100) * c}`}
+        strokeLinecap="round"
+        style={{ transition: "stroke-dasharray 0.8s ease" }} />
+    </svg>
+  );
+}
+
+// ── New Project Modal ─────────────────────────────────────────────────────────
+
+function NewProjectModal({ onClose, onAdd }: {
+  onClose: () => void;
+  onAdd: (p: Project) => void;
+}) {
+  const { plan: MOCK_PLAN } = usePlan();
+  const [step, setStep]     = useState<1 | 2>(1);
+  const [chosen, setChosen] = useState<string | null>(null);
+  const [form, setForm]     = useState({ name: "", targetDate: "", owner: "Admin", scope: "" });
+
+  const std = STANDARDS_CATALOGUE.find((s) => s.code === chosen);
+
+  function set<K extends keyof typeof form>(k: K, v: string) {
+    setForm((p) => ({ ...p, [k]: v }));
+  }
+
+  function pickStandard(code: string) {
+    setChosen(code);
+    const s = STANDARDS_CATALOGUE.find((x) => x.code === code)!;
+    const yr = new Date().getFullYear() + 1;
+    setForm((p) => ({ ...p, name: `${s.short} Certification ${yr}` }));
+  }
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!chosen || !form.name.trim()) return;
+    const s = STANDARDS_CATALOGUE.find((x) => x.code === chosen)!;
+    onAdd({
+      id: `proj-${Date.now()}`,
+      name: form.name,
+      standard: s.name,
+      standardCode: s.code,
+      status: "ACTIVE",
+      score: 0,
+      implemented: 0,
+      total: s.controls,
+      targetDate: form.targetDate || `${new Date().getFullYear() + 1}-06-30`,
+      lastUpdated: "Just now",
+      owner: form.owner,
+      phase: 1,
+      nextAction: "Run your first gap analysis",
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-2xl bg-background border border-border rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-200">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div>
+            <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+              <Rocket className="size-4 text-blue-600" /> New Compliance Project
+            </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Step {step} of 2 — {step === 1 ? "Choose your ISO standard" : "Project details"}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors p-1">
+            <X className="size-4" />
+          </button>
+        </div>
+
+        {/* Step 1: Choose standard */}
+        {step === 1 && (
+          <div className="p-6 overflow-y-auto max-h-[65vh]">
+            {MOCK_PLAN === "starter" && (
+              <div className="mb-4 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 flex items-start gap-2">
+                <AlertTriangle className="size-3.5 text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-700">
+                  <strong>Starter plan:</strong> All projects are for your chosen standard (ISO 27001). You can create as many projects as you need — certifications, surveillance audits, renewals.{" "}
+                  <Link href="/#pricing" className="underline">Upgrade</Link> to unlock all 5 standards.
+                </p>
+              </div>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {STANDARDS_CATALOGUE.map((s) => {
+                const Icon = s.icon;
+                const selected = chosen === s.code;
+                const locked = MOCK_PLAN === "starter" && s.code !== "ISO27001";
+                return (
+                  <button key={s.code}
+                    onClick={() => !locked && pickStandard(s.code)}
+                    disabled={locked}
+                    className={`text-left p-4 rounded-xl border-2 transition-all ${
+                      locked
+                        ? "border-border bg-muted/30 opacity-40 cursor-not-allowed"
+                        : selected
+                          ? "border-blue-500 bg-blue-50 shadow-md"
+                          : `${s.color} hover:border-current/50 hover:shadow-sm`
+                    }`}>
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className={`size-7 rounded-lg ${s.badge} flex items-center justify-center`}>
+                          <Icon className="size-3.5 text-white" />
+                        </span>
+                        {s.popular && !locked && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white">Most popular</span>
+                        )}
+                        {locked && (
+                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-200 text-amber-700">Pro</span>
+                        )}
+                      </div>
+                      {selected && <Check className="size-4 text-blue-600 shrink-0" />}
+                    </div>
+                    <p className="text-xs font-bold text-foreground mb-0.5">{s.name}</p>
+                    <p className="text-[10px] font-semibold text-muted-foreground mb-1.5">{s.short}</p>
+                    <p className="text-[10px] text-muted-foreground leading-relaxed mb-2">{s.description}</p>
+                    <div className="flex items-center gap-3 text-[9px] text-muted-foreground">
+                      <span>{s.controls} controls</span>
+                      <span>·</span>
+                      <span>{s.certTime}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex justify-end mt-4">
+              <Button size="sm" disabled={!chosen} onClick={() => setStep(2)}
+                className="bg-blue-600 hover:bg-blue-700 text-white">
+                Continue <ChevronRight className="size-3.5 ml-1" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 2: Project details */}
+        {step === 2 && std && (
+          <form onSubmit={submit} className="p-6 space-y-4 overflow-y-auto max-h-[65vh]">
+            {/* Chosen standard chip */}
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-muted/50 border border-border">
+              <span className={`size-6 rounded-lg ${std.badge} flex items-center justify-center shrink-0`}>
+                <std.icon className="size-3 text-white" />
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-foreground">{std.name}</p>
+                <p className="text-[10px] text-muted-foreground">{std.controls} controls · Avg. {std.certTime} to certify</p>
+              </div>
+              <button type="button" onClick={() => setStep(1)} className="text-xs text-blue-600 hover:underline shrink-0">Change</button>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground">Project name <span className="text-red-500">*</span></label>
+              <input value={form.name} onChange={(e) => set("name", e.target.value)} required autoFocus
+                className="w-full text-sm bg-muted border border-border rounded-lg px-3 py-2 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">Target certification date</label>
+                <input type="date" value={form.targetDate} onChange={(e) => set("targetDate", e.target.value)}
+                  className="w-full text-sm bg-muted border border-border rounded-lg px-3 py-2 outline-none focus:border-blue-400" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-foreground">Project lead</label>
+                <select value={form.owner} onChange={(e) => set("owner", e.target.value)}
+                  className="w-full text-sm bg-muted border border-border rounded-lg px-3 py-2 outline-none focus:border-blue-400 cursor-pointer">
+                  {TEAM_MEMBERS.map((m) => <option key={m}>{m}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-foreground">Scope description <span className="text-muted-foreground font-normal">(optional)</span></label>
+              <textarea value={form.scope} onChange={(e) => set("scope", e.target.value)} rows={3}
+                placeholder="e.g. All IT systems and personnel at Sydney HQ involved in customer data processing."
+                className="w-full text-sm bg-muted border border-border rounded-lg px-3 py-2 outline-none focus:border-blue-400 placeholder:text-muted-foreground resize-none" />
+            </div>
+
+            {/* Role tip */}
+            <div className="rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 flex gap-3">
+              <Lightbulb className="size-4 text-blue-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-semibold text-blue-800 mb-0.5">What happens next?</p>
+                <p className="text-[11px] text-blue-700 leading-relaxed">
+                  After creating this project, we&rsquo;ll run a gap analysis so you can see exactly where you stand against every {std.short} requirement. That gives you a prioritised remediation list and estimated time to certification.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button type="button" variant="outline" size="sm" className="flex-1" onClick={() => setStep(1)}>Back</Button>
+              <Button type="submit" size="sm" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
+                <Rocket className="size-3.5 mr-1.5" /> Create Project
+              </Button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Journey progress bar ──────────────────────────────────────────────────────
+
+function JourneyGuide({ projects }: { projects: Project[] }) {
+  const [expanded, setExpanded] = useState(true);
+  // Find the highest phase across all active projects
+  const maxPhase = projects.filter((p) => p.status === "ACTIVE").reduce((m, p) => Math.max(m, p.phase), 1);
+
+  return (
+    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+      <button onClick={() => setExpanded((e) => !e)}
+        className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-muted/30 transition-colors">
+        <div className="flex items-center gap-2.5">
+          <div className="size-7 rounded-lg bg-blue-600 flex items-center justify-center">
+            <Rocket className="size-3.5 text-white" />
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-semibold text-foreground">ISO Certification Journey</p>
+            <p className="text-xs text-muted-foreground">Your 6-phase roadmap from gap analysis to certificate</p>
+          </div>
+        </div>
+        <ChevronDown className={`size-4 text-muted-foreground transition-transform duration-200 ${expanded ? "" : "-rotate-90"}`} />
+      </button>
+
+      {expanded && (
+        <div className="px-5 pb-5">
+          {/* Progress connector */}
+          <div className="relative flex items-start gap-0 overflow-x-auto pb-1">
+            {JOURNEY_PHASES.map((phase, i) => {
+              const done    = phase.n < maxPhase;
+              const current = phase.n === maxPhase;
+              const Icon    = phase.icon;
+              return (
+                <div key={phase.n} className="flex flex-col items-center flex-1 min-w-[100px] relative">
+                  {/* Connector line */}
+                  {i < JOURNEY_PHASES.length - 1 && (
+                    <div className={`absolute top-4 left-1/2 right-0 h-0.5 z-0 ${done ? "bg-blue-400" : "bg-muted"}`}
+                      style={{ left: "50%", right: "-50%", width: "100%" }} />
+                  )}
+                  {/* Circle */}
+                  <Link href={phase.href}
+                    className={`relative z-10 size-8 rounded-full border-2 flex items-center justify-center transition-all mb-2 ${
+                      done    ? "bg-blue-600 border-blue-600 text-white hover:bg-blue-700"
+                      : current ? "bg-white border-blue-500 text-blue-600 shadow-md shadow-blue-100 hover:bg-blue-50"
+                      : "bg-background border-border text-muted-foreground hover:border-slate-300"
+                    }`}>
+                    {done
+                      ? <Check className="size-3.5" />
+                      : <Icon className="size-3.5" />}
+                  </Link>
+                  <p className={`text-[10px] font-semibold text-center leading-tight ${
+                    done ? "text-blue-600" : current ? "text-foreground" : "text-muted-foreground"
+                  }`}>
+                    {phase.label}
+                  </p>
+                  {current && (
+                    <span className="mt-1 text-[9px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-semibold">
+                      Current
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Current phase detail */}
+          {JOURNEY_PHASES[maxPhase - 1] && (
+            <div className="mt-4 rounded-xl bg-blue-50 border border-blue-100 px-4 py-3 flex items-start gap-3">
+              <Lightbulb className="size-4 text-blue-500 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-blue-800">
+                  Phase {maxPhase}: {JOURNEY_PHASES[maxPhase - 1].label}
+                </p>
+                <p className="text-[11px] text-blue-700 mt-0.5">{JOURNEY_PHASES[maxPhase - 1].desc}</p>
+              </div>
+              <Link href={JOURNEY_PHASES[maxPhase - 1].href}
+                className="shrink-0 text-[10px] font-semibold text-blue-600 hover:underline flex items-center gap-0.5">
+                Go <ArrowRight className="size-3" />
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Role guide (shown to new users / first visit) ─────────────────────────────
+
+function RoleGuide() {
+  const [dismissed, setDismissed] = useState(false);
+  if (dismissed) return null;
+
+  const roles = [
+    {
+      icon: Building2, color: "bg-blue-600", title: "Business Owner / CEO",
+      steps: [
+        "Create your first project and choose the ISO standard your customers are asking for",
+        "Run a gap analysis — it takes ~15 minutes and shows you exactly what you need to fix",
+        "Invite your team and assign tasks to the right people",
+        "Track progress on the dashboard and generate reports for your board",
+      ],
+      tip: "Start with ISO 27001 — it's the most commonly required for enterprise contracts.",
+    },
+    {
+      icon: Code2, color: "bg-emerald-600", title: "Security Engineer / IT Lead",
+      steps: [
+        "Create an ISO 27001 project and run the gap analysis against Annex A controls",
+        "Focus on technical controls (A.7–A.8): access management, vulnerability management, cryptography",
+        "Upload evidence for controls you've already implemented — this builds your score fast",
+        "Create tasks for gaps and assign them to yourself or your team",
+      ],
+      tip: "Many technical controls are already partially met — evidence upload is your fastest win.",
+    },
+    {
+      icon: ClipboardList, color: "bg-purple-600", title: "Compliance Manager / QA",
+      steps: [
+        "Set up all relevant ISO standards as separate projects with target certification dates",
+        "Use the gap analysis to baseline your current compliance score",
+        "Build the remediation task list and assign owners with due dates",
+        "Monitor progress weekly on the dashboard and generate audit-ready reports",
+      ],
+      tip: "Use the evidence vault to centralise policies, procedures, and audit trails in one place.",
+    },
+  ];
+
+  return (
+    <div className="rounded-2xl border border-amber-200 bg-amber-50 overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-3.5 border-b border-amber-200">
+        <div className="flex items-center gap-2.5">
+          <div className="size-7 rounded-lg bg-amber-500 flex items-center justify-center">
+            <Lightbulb className="size-3.5 text-white" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-amber-900">Where should I start?</p>
+            <p className="text-xs text-amber-700">Pick your role for a tailored first-steps guide</p>
+          </div>
+        </div>
+        <button onClick={() => setDismissed(true)}
+          className="text-amber-500 hover:text-amber-700 transition-colors p-1">
+          <X className="size-4" />
+        </button>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-5">
+        {roles.map((r) => {
+          const Icon = r.icon;
+          return (
+            <div key={r.title} className="bg-white rounded-xl border border-amber-100 p-4 shadow-sm">
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className={`size-8 rounded-lg ${r.color} flex items-center justify-center shrink-0`}>
+                  <Icon className="size-4 text-white" />
+                </div>
+                <p className="text-xs font-bold text-foreground">{r.title}</p>
+              </div>
+              <ol className="space-y-2 mb-3">
+                {r.steps.map((s, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <span className="size-4 rounded-full bg-muted text-[9px] font-bold text-muted-foreground flex items-center justify-center shrink-0 mt-0.5">
+                      {i + 1}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground leading-snug">{s}</span>
+                  </li>
+                ))}
+              </ol>
+              <div className="rounded-lg bg-amber-50 border border-amber-100 px-2.5 py-2">
+                <p className="text-[10px] text-amber-800 leading-snug"><strong>Tip:</strong> {r.tip}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Project card ──────────────────────────────────────────────────────────────
+
+function ProjectCard({ project }: { project: Project }) {
+  const theme  = standardTheme[project.standardCode] ?? standardTheme.ISO27001;
+  const status = statusConfig[project.status];
+  const due    = daysUntil(project.targetDate);
+  const notStarted = project.total - project.implemented - Math.round(project.total * 0.1);
+
+  return (
+    <div className={`rounded-2xl border border-border bg-card hover:shadow-lg transition-all duration-200 overflow-hidden group`}>
+      {/* Top band */}
+      <div className={`h-1 w-full`} style={{ backgroundColor: theme.ring }} />
+
+      <div className="p-5">
+        {/* Header row */}
+        <div className="flex items-start justify-between gap-2 mb-4">
+          <div className="flex items-start gap-3 min-w-0">
+            <div className={`size-9 rounded-xl ${theme.bg} flex items-center justify-center shrink-0 mt-0.5`}>
+              <FolderOpen className={`size-4 ${theme.text}`} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground leading-snug group-hover:text-blue-600 transition-colors truncate">
+                {project.name}
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{project.standard}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full ${status.cls}`}>
+              <status.icon className="size-3" />{status.label}
+            </span>
+          </div>
+        </div>
+
+        {/* Score + controls */}
+        <div className="flex items-center gap-4 mb-4">
+          {/* Donut */}
+          <div className="relative shrink-0">
+            <RingChart score={project.score} size={64} stroke={7} color={scoreRingColor(project.score)} />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className={`text-xs font-bold ${scoreTextColor(project.score)}`}>{project.score}%</span>
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="flex-1 min-w-0 space-y-1.5">
+            <div className="flex items-center justify-between text-xs mb-1">
+              <span className="text-muted-foreground">{project.implemented}/{project.total} controls</span>
+              <span className={`font-semibold ${scoreTextColor(project.score)}`}>{project.score}%</span>
+            </div>
+            <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden flex gap-0.5">
+              <div className="h-full bg-emerald-500 rounded-l-full transition-all duration-700"
+                style={{ width: `${(project.implemented / project.total) * 100}%` }} />
+              <div className="h-full bg-blue-400 transition-all duration-700"
+                style={{ width: `${(Math.round(project.total * 0.1) / project.total) * 100}%` }} />
+            </div>
+            <div className="flex items-center gap-3 text-[9px] text-muted-foreground">
+              <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-emerald-500 inline-block" />{project.implemented} done</span>
+              <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-blue-400 inline-block" />{Math.round(project.total * 0.1)} active</span>
+              <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-muted-foreground/30 inline-block" />{notStarted > 0 ? notStarted : 0} todo</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Gap Analysis CTA — highlighted when never assessed */}
+        {project.score === 0 && project.status === "ACTIVE" && (
+          <Link href="/reports"
+            className="flex items-center gap-2 rounded-xl border-2 border-violet-300 bg-gradient-to-r from-violet-50 to-blue-50 px-3 py-2.5 mb-4 hover:border-violet-400 transition-all group/ai">
+            <div className="size-7 rounded-lg bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center shrink-0">
+              <BarChart3 className="size-3.5 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-violet-800">Run your Gap Analysis first</p>
+              <p className="text-[10px] text-violet-600">See where you stand — takes ~15 mins</p>
+            </div>
+            <ArrowRight className="size-3.5 text-violet-500 group-hover/ai:translate-x-0.5 transition-transform shrink-0" />
+          </Link>
+        )}
+
+        {/* Next action (when not a fresh project) */}
+        {project.status === "ACTIVE" && project.score > 0 && (
+          <div className="rounded-lg bg-muted/50 border border-border px-3 py-2 mb-4 flex items-start gap-2">
+            <ArrowRight className="size-3 text-blue-500 shrink-0 mt-0.5" />
+            <p className="text-[11px] text-foreground leading-snug">
+              <span className="font-semibold text-blue-600">Next: </span>{project.nextAction}
+            </p>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+              <Calendar className="size-3" />
+              <span>Target: {formatDate(project.targetDate)}</span>
+              {project.status === "ACTIVE" && (
+                <span className={`font-semibold ${due.cls}`}>({due.label})</span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+              <Users className="size-3" />
+              <span>Lead: {project.owner}</span>
+            </div>
+          </div>
+          <Link href={`/projects/${project.id}`}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-colors">
+            Open <ArrowRight className="size-3.5" />
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Empty state ───────────────────────────────────────────────────────────────
+
+function EmptyState({ onNew }: { onNew: () => void }) {
+  return (
+    <div className="rounded-2xl border-2 border-dashed border-border p-12 text-center">
+      <div className="size-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
+        <FolderOpen className="size-8 text-muted-foreground/50" />
+      </div>
+      <h3 className="text-base font-semibold text-foreground mb-2">Create your first compliance project</h3>
+      <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-6">
+        A project tracks all your work towards certifying a single ISO standard — gap analysis, tasks, evidence, and audit reports all in one place.
+      </p>
+      <button onClick={onNew}
+        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-colors">
+        <Plus className="size-4" /> Create your first project
+      </button>
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
+
+
+export default function ProjectsPage() {
+  const { plan: MOCK_PLAN } = usePlan();
+  const [projects, setProjects]     = useState<Project[]>(initialProjects);
+  const [showModal, setShowModal] = useState(false);
+
+  const active    = projects.filter((p) => p.status === "ACTIVE");
+  const other     = projects.filter((p) => p.status !== "ACTIVE");
+  const hasProjects = projects.length > 0;
+
+  function addProject(p: Project) {
+    setProjects((prev) => [p, ...prev]);
+    setShowModal(false);
+  }
+
+  function handleNewProject() {
+    setShowModal(true);
+  }
+
+  return (
+    <>
+      {showModal && <NewProjectModal onClose={() => setShowModal(false)} onAdd={addProject} />}
+
+      <div className="space-y-6 pb-10">
+        {/* Starter plan banner */}
+        {MOCK_PLAN === "starter" && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-3">
+            <AlertTriangle className="size-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-amber-800">Starter Plan · ISO 27001 only</p>
+              <p className="text-xs text-amber-700 mt-0.5">
+                All projects are locked to your chosen standard (ISO 27001). You can create unlimited projects for certifications, surveillance audits, and renewals. <Link href="/#pricing" className="underline hover:no-underline">Upgrade to Professional</Link> to work across all 5 ISO standards.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Compliance Projects</h1>
+            <p className="text-sm text-muted-foreground">
+              {projects.length} project{projects.length !== 1 ? "s" : ""} · {active.length} active
+            </p>
+          </div>
+          <button onClick={handleNewProject}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm self-start sm:self-auto bg-blue-600 hover:bg-blue-500 text-white">
+            <Plus className="size-4" /> New Project
+          </button>
+        </div>
+
+        {/* Summary chips */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {(["ACTIVE","PAUSED","COMPLETED","ARCHIVED"] as ProjectStatus[]).map((s) => {
+            const cfg   = statusConfig[s];
+            const count = projects.filter((p) => p.status === s).length;
+            return (
+              <div key={s} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+                <span className={`size-8 rounded-lg flex items-center justify-center ${cfg.cls}`}>
+                  <cfg.icon className="size-4" />
+                </span>
+                <div>
+                  <p className="text-lg font-bold leading-none">{count}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{cfg.label}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Certification journey guide */}
+        {hasProjects && <JourneyGuide projects={projects} />}
+
+        {/* Role-based getting started */}
+        <RoleGuide />
+
+        {/* Projects */}
+        {!hasProjects ? (
+          <EmptyState onNew={() => setShowModal(true)} />
+        ) : (
+          <>
+            {active.length > 0 && (
+              <div>
+                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
+                  <span className="size-2 rounded-full bg-blue-500 inline-block" /> Active Projects
+                </h2>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {active.map((p) => <ProjectCard key={p.id} project={p} />)}
+                </div>
+              </div>
+            )}
+
+            {other.length > 0 && (
+              <div>
+                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
+                  <span className="size-2 rounded-full bg-muted-foreground/40 inline-block" /> Other Projects
+                </h2>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {other.map((p) => <ProjectCard key={p.id} project={p} />)}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </>
+  );
+}

@@ -1,65 +1,1200 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import HeroCanvas from "@/components/landing/hero-canvas";
+import FloatingCards from "@/components/landing/floating-cards";
+import { FeatureVisual } from "@/components/landing/feature-visuals";
+import { PricingSection } from "@/components/landing/pricing-section";
+import { ComparisonSection } from "@/components/landing/comparison-section";
+import { AnimateIn, CountUp } from "@/components/landing/scroll-reveal";
+import { LogoLink } from "@/components/landing/logo-link";
+import { AnimatedBlob } from "@/components/landing/animated-blob";
+import {
+  ShieldCheck,
+  BarChart3,
+  FileCheck2,
+  ArrowRight,
+  CheckCircle2,
+  Lock,
+  Sparkles,
+  Play,
+  Star,
+  ExternalLink,
+  ChevronRight,
+} from "lucide-react";
+
+// ------ Data ----------------------------------------------------------------------------------------------------------------------------------------
+
+const stats = [
+  { value: "500+", label: "Organisations certified", accent: true },
+  { value: "5", label: "ISO Standards covered", accent: false },
+  { value: "114+", label: "Annex A controls mapped", accent: false },
+  { value: "98%", label: "Customer satisfaction", accent: true },
+];
+
+const features = [
+  {
+    icon: ShieldCheck,
+    title: "Gap Analysis Engine",
+    description:
+      "Instantly map your current controls against ISO requirements. See exactly where you stand and what needs attention.",
+    bullets: [
+      "Visual compliance heatmap",
+      "Priority-ranked gaps",
+      "Cross-standard overlap detection",
+    ],
+  },
+  {
+    icon: FileCheck2,
+    title: "Evidence Vault",
+    description:
+      "Centralise all your compliance evidence. Upload documents, screenshots, and policies — linked directly to controls.",
+    bullets: [
+      "Drag-and-drop uploads",
+      "Version history",
+      "Auto-expiry reminders",
+    ],
+  },
+  {
+    icon: BarChart3,
+    title: "Audit Report Generator",
+    description:
+      "Generate professional audit reports in seconds. Impress auditors with clear, structured evidence packages.",
+    bullets: [
+      "One-click PDF export",
+      "Customisable templates",
+      "Auditor sharing links",
+    ],
+  },
+];
+
+const standards = [
+  {
+    code: "ISO 27001",
+    year: "2022",
+    name: "Information Security Management",
+    description:
+      "The world's leading standard for information security management systems. Protect data, manage risks, and demonstrate security commitment.",
+    stat: "114 controls",
+  },
+  {
+    code: "ISO 9001",
+    year: "2015",
+    name: "Quality Management System",
+    description:
+      "The internationally recognised standard for quality management. Improve processes, increase efficiency, and enhance customer satisfaction.",
+    stat: "10 clauses",
+  },
+  {
+    code: "ISO 14001",
+    year: "2015",
+    name: "Environmental Management",
+    description:
+      "A framework for managing environmental responsibilities. Reduce environmental impact and demonstrate sustainability commitment.",
+    stat: "6 clauses",
+  },
+  {
+    code: "ISO 45001",
+    year: "2018",
+    name: "Occupational Health & Safety",
+    description:
+      "The global standard for occupational health and safety management. Prevent work-related injuries, illnesses, and fatalities.",
+    stat: "10 clauses",
+  },
+  {
+    code: "ISO 42001",
+    year: "2023",
+    name: "AI Management System",
+    description:
+      "The first international standard for AI management systems. Govern AI responsibly with accountability, transparency, and risk management.",
+    stat: "9 clauses",
+  },
+];
+
+const steps = [
+  {
+    number: "01",
+    title: "Import & Assess",
+    description:
+      "Connect your organisation, select your ISO standards, and run your first gap analysis in minutes.",
+  },
+  {
+    number: "02",
+    title: "Implement & Evidence",
+    description:
+      "Work through controls systematically. Assign tasks, upload evidence, and track progress in real time.",
+  },
+  {
+    number: "03",
+    title: "Report & Certify",
+    description:
+      "Generate your audit pack, share with your certification body, and achieve certification with confidence.",
+  },
+];
+
+const testimonials = [
+  {
+    quote:
+      "ISOComply cut our ISO 27001 preparation time in half. The gap analysis alone saved us weeks of spreadsheet work.",
+    name: "Sarah Mitchell",
+    role: "CISO",
+    company: "Nexus Corp",
+  },
+  {
+    quote:
+      "Managing 3 ISO standards simultaneously used to be a nightmare. Now it's genuinely manageable.",
+    name: "James Chen",
+    role: "Quality Manager",
+    company: "BlueSky Tech",
+  },
+  {
+    quote:
+      "The audit report generator is exceptional. Our auditors were impressed by the quality of the evidence package.",
+    name: "Emma Roberts",
+    role: "Compliance Lead",
+    company: "Vertex Group",
+  },
+];
+
+const plans = [
+  {
+    name: "Free",
+    price: "£0",
+    period: "forever",
+    description: "Perfect for exploring the platform",
+    features: [
+      "1 organisation",
+      "1 ISO standard",
+      "Up to 5 users",
+      "Basic gap analysis",
+      "Community support",
+    ],
+    cta: "Get Started Free",
+    href: "/register",
+    highlighted: false,
+  },
+  {
+    name: "Professional",
+    price: "£149",
+    priceSave: "£119",
+    period: "per month",
+    description: "For growing compliance teams",
+    features: [
+      "Unlimited organisations",
+      "All 5 ISO standards",
+      "Unlimited users",
+      "Full evidence management",
+      "PDF export reports",
+      "Priority support",
+    ],
+    cta: "Start Free Trial",
+    href: "/register",
+    highlighted: true,
+  },
+  {
+    name: "Enterprise",
+    price: "Custom",
+    period: "pricing",
+    description: "For large organisations and consultancies",
+    features: [
+      "Everything in Professional",
+      "SSO / SAML",
+      "Custom integrations",
+      "Dedicated account manager",
+      "SLA guarantee",
+      "On-premises deployment",
+    ],
+    cta: "Contact Sales",
+    href: "/contact",
+    highlighted: false,
+  },
+];
+
+const footerLinks: Record<string, { label: string; href: string }[]> = {
+  Product: [
+    { label: "Features", href: "/features" },
+    { label: "Standards", href: "/#standards" },
+    { label: "Pricing", href: "/#pricing" },
+    { label: "Changelog", href: "/changelog" },
+  ],
+  Company: [
+    { label: "About", href: "/about" },
+    { label: "Blog", href: "/blog" },
+    { label: "Careers", href: "/careers" },
+    { label: "Press", href: "/press" },
+  ],
+  Resources: [
+    { label: "Documentation", href: "/docs" },
+    { label: "API", href: "/api-docs" },
+    { label: "Status", href: "/status" },
+    { label: "Security", href: "/security" },
+  ],
+  Legal: [
+    { label: "Privacy", href: "/privacy" },
+    { label: "Terms", href: "/terms" },
+    { label: "Cookies", href: "/cookies" },
+    { label: "DPA", href: "/dpa" },
+  ],
+};
+
+// ------ TypewriterText component -----------------------------------------------------------------------------------------------------------
+
+function TypewriterText() {
+  const phrases = [
+    "AI-powered gap analysis in minutes.",
+    "Know exactly where you stand.",
+    "Turn gaps into tasks automatically.",
+    "Get certified faster than ever.",
+  ];
+  const [phraseIdx, setPhraseIdx] = useState(0);
+  const [displayed, setDisplayed] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    const phrase = phrases[phraseIdx];
+    if (!deleting && displayed.length < phrase.length) {
+      const t = setTimeout(() => setDisplayed(phrase.slice(0, displayed.length + 1)), 60);
+      return () => clearTimeout(t);
+    }
+    if (!deleting && displayed.length === phrase.length) {
+      const t = setTimeout(() => setDeleting(true), 2000);
+      return () => clearTimeout(t);
+    }
+    if (deleting && displayed.length > 0) {
+      const t = setTimeout(() => setDisplayed(displayed.slice(0, -1)), 30);
+      return () => clearTimeout(t);
+    }
+    if (deleting && displayed.length === 0) {
+      setDeleting(false);
+      setPhraseIdx((i) => (i + 1) % phrases.length);
+    }
+  }, [displayed, deleting, phraseIdx]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <span className="text-blue-400">
+      {displayed}
+      <span
+        className="inline-block w-0.5 h-5 bg-blue-400 ml-0.5 align-middle"
+        style={{ animation: "blink 1s step-end infinite" }}
+      />
+    </span>
+  );
+}
+
+// ------ Sub-components ----------------------------------------------------------------------------------------------------------------------
+
+function DashboardMockup() {
+  const sidebarItems = [
+    "Dashboard",
+    "Gap Analysis",
+    "Evidence Vault",
+    "Controls",
+    "Reports",
+    "Team",
+    "Settings",
+  ];
+  const controls = [
+    { id: "A.5.1", name: "Information security policies", status: "Implemented", pct: 100 },
+    { id: "A.6.1", name: "Internal organisation", status: "In Progress", pct: 65 },
+    { id: "A.7.1", name: "Human resource security", status: "In Progress", pct: 40 },
+    { id: "A.8.1", name: "Asset management", status: "Not Started", pct: 0 },
+    { id: "A.9.1", name: "Access control", status: "Implemented", pct: 100 },
+    { id: "A.10.1", name: "Cryptography", status: "In Progress", pct: 72 },
+    { id: "A.11.1", name: "Physical security", status: "Implemented", pct: 100 },
+    { id: "A.12.1", name: "Operations security", status: "Not Started", pct: 15 },
+  ];
+  return (
+    <div className="relative rounded-xl border border-slate-700/60 bg-slate-900 overflow-hidden shadow-2xl shadow-blue-900/20">
+      {/* Browser chrome */}
+      <div className="bg-slate-800 px-4 py-3 flex items-center gap-3 border-b border-slate-700">
+        <div className="flex gap-1.5">
+          <div className="size-3 rounded-full bg-red-500/70" />
+          <div className="size-3 rounded-full bg-yellow-500/70" />
+          <div className="size-3 rounded-full bg-green-500/70" />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+        <div className="flex-1 flex justify-center">
+          <div className="bg-slate-700 rounded-md px-4 py-1 text-xs text-slate-400 w-56 text-center">
+            app.isocomply.io/dashboard
+          </div>
+        </div>
+      </div>
+      {/* App layout */}
+      <div className="flex h-[420px]">
+        {/* Sidebar */}
+        <div className="w-44 bg-slate-950 border-r border-slate-800 flex flex-col py-4 shrink-0">
+          <div className="flex items-center gap-2 px-4 mb-6">
+            <ShieldCheck className="size-5 text-blue-500" />
+            <span className="text-xs font-bold text-white">ISOComply</span>
+          </div>
+          <nav className="flex flex-col gap-0.5 px-2">
+            {sidebarItems.map((item, i) => (
+              <div
+                key={item}
+                className={`px-3 py-1.5 rounded-md text-xs ${
+                  i === 0
+                    ? "bg-blue-600/20 text-blue-400 font-medium"
+                    : "text-slate-500 hover:text-slate-300"
+                }`}
+              >
+                {item}
+              </div>
+            ))}
+          </nav>
+        </div>
+        {/* Main content */}
+        <div className="flex-1 overflow-hidden flex flex-col bg-slate-900">
+          {/* Header */}
+          <div className="px-5 py-3 border-b border-slate-800 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-white">Compliance Dashboard</p>
+              <p className="text-[10px] text-slate-500">ISO 27001:2022 · Last updated today</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded font-medium">
+                68% Complete
+              </div>
+            </div>
+          </div>
+          {/* Score cards */}
+          <div className="px-4 py-3 grid grid-cols-4 gap-2.5">
+            {[
+              { label: "ISO 27001", pct: 68, color: "bg-blue-500" },
+              { label: "ISO 9001", pct: 84, color: "bg-emerald-500" },
+              { label: "ISO 14001", pct: 42, color: "bg-amber-500" },
+              { label: "ISO 45001", pct: 91, color: "bg-violet-500" },
+            ].map((item) => (
+              <div
+                key={item.label}
+                className="bg-slate-800/80 rounded-lg p-2.5 border border-slate-700/50"
+              >
+                <p className="text-[10px] text-slate-400 mb-0.5">{item.label}</p>
+                <p className="text-lg font-bold text-white leading-tight">{item.pct}%</p>
+                <div className="mt-1.5 h-1 bg-slate-700 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full ${item.color} rounded-full`}
+                    style={{ width: `${item.pct}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Controls table */}
+          <div className="px-4 pb-3 flex-1 overflow-hidden">
+            <p className="text-[10px] font-semibold text-slate-400 mb-1.5 uppercase tracking-wider">
+              Recent Controls
+            </p>
+            <div className="rounded-lg border border-slate-700/50 overflow-hidden">
+              <table className="w-full text-[10px]">
+                <thead>
+                  <tr className="bg-slate-800/50 border-b border-slate-700/50">
+                    <th className="text-left px-2.5 py-1.5 text-slate-500 font-medium">Control</th>
+                    <th className="text-left px-2.5 py-1.5 text-slate-500 font-medium hidden sm:table-cell">Name</th>
+                    <th className="text-left px-2.5 py-1.5 text-slate-500 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {controls.map((c, i) => (
+                    <tr key={c.id} className={i % 2 === 0 ? "bg-slate-900" : "bg-slate-850"}>
+                      <td className="px-2.5 py-1.5 text-blue-400 font-mono font-medium">{c.id}</td>
+                      <td className="px-2.5 py-1.5 text-slate-300 hidden sm:table-cell">{c.name}</td>
+                      <td className="px-2.5 py-1.5">
+                        <span
+                          className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-medium ${
+                            c.status === "Implemented"
+                              ? "bg-emerald-500/15 text-emerald-400"
+                              : c.status === "In Progress"
+                              ? "bg-blue-500/15 text-blue-400"
+                              : "bg-slate-500/15 text-slate-400"
+                          }`}
+                        >
+                          {c.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ------ TestimonialsSection -----------------------------------------------------------------------------------------------------------------------
+
+function TestimonialsSection() {
+  const [activeTestimonial, setActiveTestimonial] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setActiveTestimonial((i) => (i + 1) % testimonials.length);
+    }, 4000);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <section className="py-28 bg-slate-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-16">
+          <h2
+            className="text-3xl md:text-4xl font-bold text-slate-900 mb-4"
+            style={{ fontFamily: "var(--font-jakarta), sans-serif" }}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+            Trusted by compliance professionals
+          </h2>
+        </div>
+
+        {/* Active testimonial with fade */}
+        <div className="max-w-2xl mx-auto mb-8">
+          {testimonials.map((t, i) => (
+            <div
+              key={t.name}
+              className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm transition-all duration-500"
+              style={{
+                opacity: i === activeTestimonial ? 1 : 0,
+                position: i === activeTestimonial ? "relative" : "absolute",
+                pointerEvents: i === activeTestimonial ? "auto" : "none",
+                transform: i === activeTestimonial ? "translateY(0)" : "translateY(8px)",
+              }}
+            >
+              <div className="flex gap-0.5 mb-5">
+                {[1, 2, 3, 4, 5].map((s) => (
+                  <Star key={s} className="size-4 fill-amber-400 text-amber-400" />
+                ))}
+              </div>
+              <p className="text-slate-700 leading-relaxed mb-6 text-[15px]">
+                &ldquo;{t.quote}&rdquo;
+              </p>
+              <div>
+                <p
+                  className="font-semibold text-slate-900"
+                  style={{ fontFamily: "var(--font-jakarta), sans-serif" }}
+                >
+                  {t.name}
+                </p>
+                <p className="text-sm text-slate-500">
+                  {t.role}, {t.company}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Navigation dots */}
+        <div className="flex items-center justify-center gap-2">
+          {testimonials.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setActiveTestimonial(i)}
+              className={`rounded-full transition-all duration-300 ${
+                i === activeTestimonial
+                  ? "w-6 h-2 bg-blue-600"
+                  : "w-2 h-2 bg-slate-300 hover:bg-slate-400"
+              }`}
+              aria-label={`Go to testimonial ${i + 1}`}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+          ))}
         </div>
-      </main>
+      </div>
+    </section>
+  );
+}
+
+// ------ Page ------------------------------------------------------------------------------------------------------------------------------------------
+
+export default function LandingPage() {
+  return (
+    <div
+      className="min-h-screen"
+      style={{ fontFamily: "var(--font-inter), sans-serif" }}
+    >
+      {/* ---- Navigation ---------------------------------------------------------------------------------------------------------------- */}
+      <nav
+        className="sticky top-0 z-50 border-b border-white/5"
+        style={{
+          background: "rgba(10,15,30,0.85)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+        }}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center justify-between">
+            <LogoLink />
+            <div className="hidden md:flex items-center gap-7 text-sm">
+              {[
+                { label: "Features", href: "#features" },
+                { label: "Standards", href: "#standards" },
+                { label: "How It Works", href: "/how-it-works" },
+                { label: "Pricing", href: "#pricing" },
+              ].map((item) => (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  className="text-slate-400 hover:text-white transition-colors"
+                >
+                  {item.label}
+                </a>
+              ))}
+            </div>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-slate-300 hover:text-white hover:bg-white/10"
+              >
+                <Link href="/login">Log in</Link>
+              </Button>
+              <Link href="/register">
+                <Button
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-500 text-white"
+                >
+                  Get Started Free
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* ---- Hero -------------------------------------------------------------------------------------------------------------------------------- */}
+      <section
+        className="relative overflow-hidden"
+        style={{ backgroundColor: "#0a0f1e" }}
+      >
+        {/* Animated blobs */}
+        <AnimatedBlob className="w-96 h-96 bg-blue-600/20 top-20 left-1/4" style={{ animationDelay: "0s" }} />
+        <AnimatedBlob className="w-80 h-80 bg-violet-600/15 top-40 right-1/4" style={{ animationDelay: "2s" }} />
+        <AnimatedBlob className="w-64 h-64 bg-cyan-500/10 bottom-20 left-1/3" style={{ animationDelay: "4s" }} />
+
+        {/* Animated particle network canvas */}
+        <HeroCanvas />
+        {/* Animated gradient blob */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              "linear-gradient(135deg, rgba(30,27,75,0.7) 0%, rgba(10,15,30,0.6) 30%, rgba(15,23,42,0.7) 50%, rgba(26,16,64,0.7) 70%, rgba(10,15,30,0.6) 100%)",
+            backgroundSize: "300% 300%",
+            animation: "gradient-shift 12s ease infinite",
+          }}
+        />
+        {/* Grid pattern overlay */}
+        <div
+          className="absolute inset-0 pointer-events-none opacity-[0.04]"
+          style={{
+            backgroundImage:
+              "repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(99,102,241,0.5) 39px, rgba(99,102,241,0.5) 40px), repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(99,102,241,0.5) 39px, rgba(99,102,241,0.5) 40px)",
+          }}
+        />
+        {/* Radial accent */}
+        <div
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(ellipse at 50% 0%, rgba(59,130,246,0.15) 0%, transparent 70%)",
+          }}
+        />
+
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16">
+          <div className="text-center max-w-4xl mx-auto">
+            {/* Badge */}
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-violet-500/30 bg-violet-500/10 text-violet-300 text-sm font-medium mb-8">
+              <Sparkles className="size-4 text-violet-400" />
+              New: AI Compliance Advisor — get guided through every control
+            </div>
+
+            {/* H1 */}
+            <h1
+              className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-white leading-[1.08] mb-4"
+              style={{ fontFamily: "var(--font-jakarta), sans-serif" }}
+            >
+              Achieve ISO Certification
+            </h1>
+            <h1
+              className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.08] mb-8"
+              style={{
+                fontFamily: "var(--font-jakarta), sans-serif",
+                background:
+                  "linear-gradient(90deg, #60a5fa, #a78bfa, #67e8f9, #60a5fa)",
+                backgroundSize: "200% auto",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+                animation: "shimmer 3s linear infinite",
+              }}
+            >
+              Faster Than Ever
+            </h1>
+
+            {/* Subheading */}
+            <p className="text-lg md:text-xl text-slate-400 mb-10 max-w-2xl mx-auto leading-relaxed">
+              The AI-powered compliance platform trusted by 500+ organisations.
+              Your personal AI advisor guides you through every control —
+              gap analysis, tasks, and certification, all in one place.
+              <br /><TypewriterText />
+            </p>
+
+            {/* CTAs */}
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+              <Link href="/register">
+                <Button
+                  size="lg"
+                  className="bg-blue-600 hover:bg-blue-500 text-white h-12 px-8 text-base font-semibold"
+                  style={{ animation: "glow-btn 3s ease-in-out infinite" }}
+                >
+                  Start Free Trial
+                  <ArrowRight className="ml-2 size-4" />
+                </Button>
+              </Link>
+              <Link href="/how-it-works">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="border-slate-600 text-slate-300 hover:bg-white/5 h-12 px-8 text-base"
+                >
+                  <Play className="mr-2 size-4" />
+                  How it Works
+                </Button>
+              </Link>
+            </div>
+
+            {/* Trust badges */}
+            <div className="flex flex-wrap items-center justify-center gap-3 mb-16">
+              {[
+                { icon: Lock, label: "SOC 2 Type II" },
+                { icon: ShieldCheck, label: "GDPR Ready" },
+                { icon: Lock, label: "256-bit Encryption" },
+                { icon: CheckCircle2, label: "99.9% Uptime" },
+              ].map((badge) => (
+                <div
+                  key={badge.label}
+                  className="flex items-center gap-1.5 text-xs text-slate-400 bg-white/5 border border-white/10 rounded-full px-3 py-1.5"
+                >
+                  <badge.icon className="size-3.5 text-blue-400" />
+                  {badge.label}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Dashboard mockup with floating cards */}
+          <div className="max-w-5xl mx-auto relative">
+            <FloatingCards />
+            <DashboardMockup />
+          </div>
+        </div>
+      </section>
+
+      {/* ---- Social proof logos -------------------------------------------------------------------------------------------------- */}
+      <section className="py-14 bg-slate-950 border-y border-white/5">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <p className="text-center text-xs font-medium text-slate-500 uppercase tracking-widest mb-8">
+            Trusted by compliance teams at leading organisations
+          </p>
+          {(() => {
+            const logos = [
+              "Nexus Corp",
+              "Meridian Health",
+              "BlueSky Tech",
+              "Apex Systems",
+              "Vertex Group",
+              "Orion Digital",
+            ];
+            return (
+              <div className="overflow-hidden relative">
+                {/* Fade masks on edges */}
+                <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-slate-950 to-transparent z-10 pointer-events-none" />
+                <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-slate-950 to-transparent z-10 pointer-events-none" />
+                <div
+                  className="flex gap-6"
+                  style={{ animation: "marquee 20s linear infinite", width: "max-content" }}
+                >
+                  {[...logos, ...logos].map((name, i) => (
+                    <div
+                      key={i}
+                      className="px-5 py-2 rounded-lg border border-slate-700/50 bg-slate-800/30 text-slate-500 text-sm font-semibold tracking-wide whitespace-nowrap"
+                    >
+                      {name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      </section>
+
+      {/* ---- Stats -------------------------------------------------------------------------------------------------------------------------- */}
+      <section className="py-24" style={{ backgroundColor: "#0a0f1e" }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-0 lg:divide-x lg:divide-white/10">
+            {[
+              { to: 500, suffix: "+", label: "Organisations certified" },
+              { to: 5, suffix: "", label: "ISO Standards covered" },
+              { to: 114, suffix: "+", label: "Annex A controls mapped" },
+              { to: 98, suffix: "%", label: "Customer satisfaction" },
+            ].map((stat, i) => (
+              <AnimateIn key={stat.label} delay={i * 100} className="text-center px-6 group">
+                <p
+                  className="text-5xl lg:text-6xl font-bold mb-2 group-hover:scale-110 transition-transform duration-300"
+                  style={{
+                    fontFamily: "var(--font-jakarta), sans-serif",
+                    background: "linear-gradient(135deg, #60a5fa, #818cf8)",
+                    WebkitBackgroundClip: "text",
+                    WebkitTextFillColor: "transparent",
+                    backgroundClip: "text",
+                  }}
+                >
+                  <CountUp to={stat.to} suffix={stat.suffix} />
+                </p>
+                <p className="text-slate-400 text-sm">{stat.label}</p>
+              </AnimateIn>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ---- Features -------------------------------------------------------------------------------------------------------------------- */}
+      <section id="features" className="py-28 bg-slate-950">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <AnimateIn className="text-center mb-20">
+            <h2
+              className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-5"
+              style={{ fontFamily: "var(--font-jakarta), sans-serif" }}
+            >
+              Everything you need to get certified
+            </h2>
+            <p className="text-lg text-slate-400 max-w-2xl mx-auto">
+              From day-one gap assessment to audit day, ISOComply manages your
+              entire compliance journey
+            </p>
+          </AnimateIn>
+
+          <div className="flex flex-col gap-16">
+            {features.map((feature, i) => (
+              <AnimateIn
+                key={feature.title}
+                direction={i % 2 === 0 ? "left" : "right"}
+                delay={100}
+              >
+              <div
+                className={`flex flex-col lg:flex-row items-center gap-12 ${
+                  i % 2 === 1 ? "lg:flex-row-reverse" : ""
+                }`}
+              >
+                {/* Text with beam sweep card */}
+                <div className="flex-1">
+                  <div className="relative overflow-hidden group/card rounded-2xl border border-white/5 bg-white/[0.02] p-8 hover:border-blue-500/30 hover:bg-white/[0.04] transition-all duration-500">
+                    {/* Beam sweep on hover */}
+                    <div className="absolute inset-0 translate-x-[-100%] group-hover/card:translate-x-[300%] transition-transform duration-700 skew-x-[-15deg] bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none" />
+                    <div className="inline-flex items-center justify-center size-14 rounded-2xl bg-blue-600/15 border border-blue-500/20 mb-5">
+                      <feature.icon className="size-7 text-blue-400" />
+                    </div>
+                    <h3
+                      className="text-2xl font-bold text-white mb-4"
+                      style={{ fontFamily: "var(--font-jakarta), sans-serif" }}
+                    >
+                      {feature.title}
+                    </h3>
+                    <p className="text-slate-400 leading-relaxed mb-6">
+                      {feature.description}
+                    </p>
+                    <ul className="space-y-3">
+                      {feature.bullets.map((b) => (
+                        <li key={b} className="flex items-center gap-3 text-slate-300">
+                          <CheckCircle2 className="size-4 text-blue-400 shrink-0" />
+                          {b}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+                {/* Animated feature visual */}
+                <div className="flex-1 w-full">
+                  <FeatureVisual index={i} />
+                </div>
+              </div>
+              </AnimateIn>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ---- AI Advisor ------------------------------------------------------------------------------------------------------------ */}
+      <section id="ai-advisor" className="py-28" style={{ background: "linear-gradient(135deg, #0f0a1e 0%, #0a0f1e 50%, #0e0a1e 100%)" }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <AnimateIn className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-violet-500/30 bg-violet-500/10 text-violet-300 text-sm font-medium mb-6">
+              <Sparkles className="size-4 text-violet-400" />
+              AI-Powered Guidance
+            </div>
+            <h2
+              className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-5"
+              style={{ fontFamily: "var(--font-jakarta), sans-serif" }}
+            >
+              Meet your AI Compliance Advisor
+            </h2>
+            <p className="text-lg text-slate-400 max-w-2xl mx-auto">
+              Don't know where to start? Just ask. Our AI advisor knows every ISO control
+              inside out — it guides you through implementation, tells you what evidence auditors
+              expect, and prioritises your gaps so you always know what to do next.
+            </p>
+          </AnimateIn>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            {/* AI capabilities */}
+            <AnimateIn direction="left" delay={100}>
+              <div className="space-y-4">
+                {[
+                  {
+                    icon: "🎯",
+                    title: "Step-by-step implementation guidance",
+                    body: "For any ISO control, the AI breaks down exactly what you need to do — in plain English, with no compliance jargon.",
+                  },
+                  {
+                    icon: "📋",
+                    title: "Evidence coaching",
+                    body: "Know exactly what documents, screenshots, and records your auditor will ask for — before they ask.",
+                  },
+                  {
+                    icon: "⚡",
+                    title: "Prioritised gap analysis",
+                    body: "The AI ranks your gaps by risk and effort so you tackle critical issues first and reach certification faster.",
+                  },
+                  {
+                    icon: "💬",
+                    title: "Ask anything, 24/7",
+                    body: "\"How do I implement MFA?\", \"What's an ISMS policy?\" — get instant, expert answers any time.",
+                  },
+                ].map((item) => (
+                  <div key={item.title} className="flex items-start gap-4 p-4 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/8 transition-colors">
+                    <span className="text-2xl shrink-0">{item.icon}</span>
+                    <div>
+                      <p className="text-sm font-semibold text-white mb-1">{item.title}</p>
+                      <p className="text-sm text-slate-400 leading-relaxed">{item.body}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </AnimateIn>
+
+            {/* AI chat mockup */}
+            <AnimateIn direction="right" delay={200}>
+              <div className="rounded-2xl border border-slate-700/60 bg-slate-900 overflow-hidden shadow-2xl shadow-violet-900/20">
+                {/* Header */}
+                <div className="bg-gradient-to-r from-violet-900/60 to-blue-900/60 px-4 py-3 border-b border-slate-700 flex items-center gap-3">
+                  <div className="size-8 rounded-xl bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center">
+                    <span className="text-white text-sm">🤖</span>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-white">AI Compliance Advisor</p>
+                    <p className="text-[10px] text-slate-400 flex items-center gap-1">
+                      <span className="size-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" /> Online · ISO 27001 · A.8.5
+                    </p>
+                  </div>
+                </div>
+                {/* Chat messages */}
+                <div className="p-4 space-y-3 min-h-[260px]">
+                  <div className="flex gap-2">
+                    <div className="size-6 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center shrink-0 mt-0.5">
+                      <span className="text-white text-[10px]">AI</span>
+                    </div>
+                    <div className="bg-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 max-w-[85%] leading-relaxed">
+                      I see you're looking at <span className="font-semibold text-violet-300">A.8.5 — Secure Authentication</span> (Critical risk). What would you like help with?
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <div className="bg-blue-600 rounded-xl px-3 py-2 text-xs text-white max-w-[80%]">
+                      How do I implement MFA for our remote workers?
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="size-6 rounded-full bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center shrink-0 mt-0.5">
+                      <span className="text-white text-[10px]">AI</span>
+                    </div>
+                    <div className="bg-slate-800 rounded-xl px-3 py-2 text-xs text-slate-300 max-w-[85%] leading-relaxed">
+                      <span className="font-semibold text-white">MFA rollout — step by step:</span><br />
+                      1. Enable MFA in your IdP (Azure AD, Okta, or Google Workspace)<br />
+                      2. Enforce it on VPN + critical SaaS first<br />
+                      3. Communicate to staff with a 2-week notice<br />
+                      4. Export enrollment report as audit evidence ✅
+                    </div>
+                  </div>
+                  {/* Quick question chips */}
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {["What evidence do I need?", "How long does this take?", "What tools help?"].map((q) => (
+                      <span key={q} className="text-[10px] px-2 py-0.5 rounded-full border border-violet-500/30 bg-violet-500/10 text-violet-300 cursor-pointer">
+                        {q}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                {/* Input */}
+                <div className="px-4 pb-4 flex items-center gap-2">
+                  <div className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-500">
+                    Ask anything about ISO compliance…
+                  </div>
+                  <div className="size-8 rounded-xl bg-violet-600 flex items-center justify-center">
+                    <span className="text-white text-xs">→</span>
+                  </div>
+                </div>
+              </div>
+            </AnimateIn>
+          </div>
+        </div>
+      </section>
+
+      {/* ---- ISO Standards ---------------------------------------------------------------------------------------------------------- */}
+      <section id="standards" className="py-28 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <AnimateIn className="text-center mb-16">
+            <h2
+              className="text-3xl md:text-4xl lg:text-5xl font-bold text-slate-900 mb-5"
+              style={{ fontFamily: "var(--font-jakarta), sans-serif" }}
+            >
+              Comprehensive ISO Framework Coverage
+            </h2>
+            <p className="text-lg text-slate-500 max-w-2xl mx-auto">
+              One platform for all your ISO compliance needs. Identify shared
+              controls and reduce duplication.
+            </p>
+          </AnimateIn>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {standards.map((std, i) => (
+              <AnimateIn key={std.code} delay={i * 80} direction="up">
+              <div
+                key={std.code}
+                className="rounded-2xl border border-slate-200 bg-slate-50 p-6 hover:border-blue-300 hover:shadow-lg hover:shadow-blue-100 transition-all"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <span className="inline-block text-xs font-bold px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 mb-2">
+                      {std.code}:{std.year}
+                    </span>
+                    <h3
+                      className="font-bold text-slate-900"
+                      style={{ fontFamily: "var(--font-jakarta), sans-serif" }}
+                    >
+                      {std.name}
+                    </h3>
+                  </div>
+                </div>
+                <p className="text-sm text-slate-500 leading-relaxed mb-5">
+                  {std.description}
+                </p>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-blue-600 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-full">
+                    {std.stat}
+                  </span>
+                  <a
+                    href="#"
+                    className="text-sm text-blue-600 font-medium hover:text-blue-700 flex items-center gap-1"
+                  >
+                    Learn more <ChevronRight className="size-3.5" />
+                  </a>
+                </div>
+              </div>
+              </AnimateIn>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ---- How It Works ------------------------------------------------------------------------------------------------------------ */}
+      <section
+        id="how-it-works"
+        className="py-28"
+        style={{ backgroundColor: "#0a0f1e" }}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-20">
+            <h2
+              className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-5"
+              style={{ fontFamily: "var(--font-jakarta), sans-serif" }}
+            >
+              Get certified in 3 steps
+            </h2>
+          </div>
+          <div className="relative grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Dotted connector line */}
+            <div
+              className="hidden md:block absolute top-10 left-[calc(16.67%+1rem)] right-[calc(16.67%+1rem)]"
+              style={{
+                height: "1px",
+                backgroundImage:
+                  "repeating-linear-gradient(90deg, rgba(99,102,241,0.5) 0, rgba(99,102,241,0.5) 6px, transparent 6px, transparent 14px)",
+              }}
+            />
+            {steps.map((step, i) => (
+              <AnimateIn key={step.number} delay={i * 150} direction="up">
+              <div className="relative text-center">
+                <div className="inline-flex items-center justify-center size-20 rounded-2xl border border-blue-500/30 bg-blue-600/10 mb-6 relative">
+                  {/* Pulsing gradient background behind number */}
+                  <div
+                    className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100"
+                    style={{
+                      background: "radial-gradient(circle, rgba(59,130,246,0.3) 0%, transparent 70%)",
+                      animation: "pulse-glow 2s ease-in-out infinite",
+                    }}
+                  />
+                  <span
+                    className="text-3xl font-bold text-blue-400 relative z-10"
+                    style={{ fontFamily: "var(--font-jakarta), sans-serif" }}
+                  >
+                    {step.number}
+                  </span>
+                </div>
+                <h3
+                  className="text-xl font-bold text-white mb-3"
+                  style={{ fontFamily: "var(--font-jakarta), sans-serif" }}
+                >
+                  {step.title}
+                </h3>
+                <p className="text-slate-400 leading-relaxed max-w-xs mx-auto">
+                  {step.description}
+                </p>
+              </div>
+              </AnimateIn>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ---- Testimonials ------------------------------------------------------------------------------------------------------------ */}
+      <TestimonialsSection />
+
+      {/* ---- Comparison ---------------------------------------------------------------------------------------------------------------- */}
+      <ComparisonSection />
+
+      {/* ---- Pricing ---------------------------------------------------------------------------------------------------------------------- */}
+      <PricingSection />
+
+      {/* ---- CTA Banner ---------------------------------------------------------------------------------------------------------------- */}
+      <section
+        className="relative overflow-hidden py-28"
+        style={{ backgroundColor: "#0a0f1e" }}
+      >
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              "linear-gradient(135deg, #1e1b4b 0%, #0a0f1e 40%, #0c1a3a 70%, #0a0f1e 100%)",
+            backgroundSize: "300% 300%",
+            animation: "gradient-shift 10s ease infinite",
+          }}
+        />
+        <div
+          className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] pointer-events-none"
+          style={{
+            background:
+              "radial-gradient(ellipse at 50% 0%, rgba(59,130,246,0.12) 0%, transparent 70%)",
+          }}
+        />
+        <AnimateIn className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="relative group">
+            {/* Rotating gradient border */}
+            <div
+              className="absolute -inset-[1px] rounded-3xl opacity-70 group-hover:opacity-100 transition-opacity"
+              style={{
+                background: "conic-gradient(from 0deg, #3b82f6, #8b5cf6, #06b6d4, #3b82f6)",
+                animation: "spin-slow 4s linear infinite",
+                filter: "blur(1px)",
+              }}
+            />
+            <div className="relative rounded-3xl bg-slate-900 p-12 text-center">
+              <h2
+                className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-5"
+                style={{ fontFamily: "var(--font-jakarta), sans-serif" }}
+              >
+                Ready to achieve ISO certification?
+              </h2>
+              <p className="text-lg text-slate-400 mb-10 max-w-xl mx-auto">
+                Join 500+ organisations that trust ISOComply to manage their
+                compliance programmes.
+              </p>
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <Link href="/register">
+                  <Button
+                    size="lg"
+                    className="bg-blue-600 hover:bg-blue-500 text-white h-12 px-10 text-base font-semibold"
+                    style={{ animation: "glow-btn 3s ease-in-out infinite" }}
+                  >
+                    Start Free Trial
+                    <ArrowRight className="ml-2 size-4" />
+                  </Button>
+                </Link>
+                <p className="text-sm text-slate-500">No credit card required</p>
+              </div>
+            </div>
+          </div>
+        </AnimateIn>
+      </section>
+
+      {/* ---- Footer ------------------------------------------------------------------------------------------------------------------------ */}
+      <footer className="bg-slate-950 border-t border-white/5 pt-16 pb-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
+            {/* Brand */}
+            <div className="col-span-2 md:col-span-1">
+              <div className="flex items-center gap-2 mb-3">
+                <ShieldCheck className="size-6 text-blue-500" />
+                <span
+                  className="text-lg font-bold text-white"
+                  style={{ fontFamily: "var(--font-jakarta), sans-serif" }}
+                >
+                  ISOComply
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                The intelligent ISO compliance platform
+              </p>
+            </div>
+            {/* Link columns */}
+            {Object.entries(footerLinks).map(([col, links]) => (
+              <div key={col}>
+                <p
+                  className="text-xs font-semibold text-slate-300 uppercase tracking-widest mb-4"
+                  style={{ fontFamily: "var(--font-jakarta), sans-serif" }}
+                >
+                  {col}
+                </p>
+                <ul className="space-y-2.5">
+                  {links.map((link) => (
+                    <li key={link.label}>
+                      <Link
+                        href={link.href}
+                        className="text-sm text-slate-500 hover:text-slate-300 transition-colors"
+                      >
+                        {link.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+
+          {/* Bottom bar */}
+          <div className="border-t border-white/5 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p className="text-xs text-slate-600">
+              © {new Date().getFullYear()} ISOComply Ltd. All rights reserved.
+            </p>
+            <div className="flex items-center gap-5 text-xs text-slate-600">
+              <a href="#" className="hover:text-slate-400 transition-colors">X&nbsp;(Twitter)</a>
+              <a href="#" className="hover:text-slate-400 transition-colors">LinkedIn</a>
+              <a href="#" className="hover:text-slate-400 transition-colors flex items-center gap-1">
+                GitHub <ExternalLink className="size-3" />
+              </a>
+            </div>
+          </div>
+        </div>
+      </footer>
+
     </div>
   );
 }

@@ -1,0 +1,263 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Organisation {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  logoUrl   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members       OrgMember[]
+  projects      ComplianceProject[]
+  subscriptions Subscription[]
+}
+
+model OrgMember {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  role      OrgRole  @default(MEMBER)
+  createdAt DateTime @default(now())
+
+  organisation Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+}
+
+enum OrgRole {
+  OWNER
+  ADMIN
+  AUDITOR
+  MEMBER
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  avatarUrl     String?
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  orgMembers    OrgMember[]
+  assignedTasks ControlTask[]
+  comments      ControlComment[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model IsoStandard {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+  version     String
+  createdAt   DateTime @default(now())
+
+  clauses  IsoClause[]
+  projects ComplianceProject[]
+}
+
+model IsoClause {
+  id           String  @id @default(cuid())
+  standardId   String
+  clauseNumber String
+  title        String
+  description  String? @db.Text
+  parentId     String?
+
+  standard IsoStandard @relation(fields: [standardId], references: [id])
+  parent   IsoClause?  @relation("ClauseHierarchy", fields: [parentId], references: [id])
+  children IsoClause[] @relation("ClauseHierarchy")
+  controls IsoControl[]
+}
+
+model IsoControl {
+  id          String  @id @default(cuid())
+  clauseId    String
+  controlRef  String
+  title       String
+  description String? @db.Text
+  guidance    String? @db.Text
+
+  clause          IsoClause        @relation(fields: [clauseId], references: [id])
+  projectControls ProjectControl[]
+}
+
+model ComplianceProject {
+  id         String        @id @default(cuid())
+  orgId      String
+  standardId String
+  name       String
+  targetDate DateTime?
+  status     ProjectStatus @default(ACTIVE)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  organisation Organisation    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  standard     IsoStandard     @relation(fields: [standardId], references: [id])
+  controls     ProjectControl[]
+}
+
+enum ProjectStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+model ProjectControl {
+  id        String        @id @default(cuid())
+  projectId String
+  controlId String
+  status    ControlStatus @default(NOT_STARTED)
+  notes     String?       @db.Text
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  project  ComplianceProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  control  IsoControl        @relation(fields: [controlId], references: [id])
+  evidence Evidence[]
+  tasks    ControlTask[]
+  comments ControlComment[]
+
+  @@unique([projectId, controlId])
+}
+
+enum ControlStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  IMPLEMENTED
+  NOT_APPLICABLE
+  NON_COMPLIANT
+}
+
+model Evidence {
+  id               String   @id @default(cuid())
+  projectControlId String
+  name             String
+  description      String?
+  fileUrl          String?
+  fileType         String?
+  fileSize         Int?
+  uploadedBy       String
+  createdAt        DateTime @default(now())
+
+  projectControl ProjectControl @relation(fields: [projectControlId], references: [id], onDelete: Cascade)
+}
+
+model ControlTask {
+  id               String       @id @default(cuid())
+  projectControlId String
+  title            String
+  description      String?
+  assigneeId       String?
+  dueDate          DateTime?
+  status           TaskStatus   @default(TODO)
+  priority         TaskPriority @default(MEDIUM)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  projectControl ProjectControl @relation(fields: [projectControlId], references: [id], onDelete: Cascade)
+  assignee       User?          @relation(fields: [assigneeId], references: [id])
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model ControlComment {
+  id               String   @id @default(cuid())
+  projectControlId String
+  authorId         String
+  body             String   @db.Text
+  createdAt        DateTime @default(now())
+
+  projectControl ProjectControl @relation(fields: [projectControlId], references: [id], onDelete: Cascade)
+  author         User           @relation(fields: [authorId], references: [id])
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  orgId                String
+  stripeCustomerId     String?            @unique
+  stripeSubscriptionId String?            @unique
+  stripePriceId        String?
+  plan                 SubscriptionPlan   @default(FREE)
+  status               SubscriptionStatus @default(ACTIVE)
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  organisation Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+}
+
+enum SubscriptionPlan {
+  FREE
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  TRIALING
+}
