@@ -9,6 +9,7 @@ import {
   Clock,
   ArrowRight,
   FileCheck2,
+  MessageSquare,
   Plus,
   User,
   Activity,
@@ -21,33 +22,41 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useOrg } from "@/lib/org-context";
 
-// ── Data ─────────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
-const complianceScores = [
-  { standard: "ISO 27001:2022", code: "ISO27001", score: 68, implemented: 63, total: 93,  trend: "+5%", status: "In Progress",    href: "/projects/proj-1", barColor: "#3b82f6" },
-  { standard: "ISO 9001:2015",  code: "ISO9001",  score: 84, implemented: 71, total: 85,  trend: "+2%", status: "On Track",        href: "/projects/proj-2", barColor: "#22c55e" },
-  { standard: "ISO 14001:2015", code: "ISO14001", score: 42, implemented: 26, total: 62,  trend: "—",   status: "Needs Attention", href: "/projects/proj-3", barColor: "#f59e0b" },
-  { standard: "ISO 45001:2018", code: "ISO45001", score: 91, implemented: 67, total: 74,  trend: "+8%", status: "Certified",       href: "/projects/proj-4", barColor: "#10b981" },
-  { standard: "ISO 42001:2023", code: "ISO42001", score: 23, implemented: 13, total: 58,  trend: "New", status: "Starting",        href: "/projects/proj-5", barColor: "#a855f7" },
-];
+type ActivityEvent = {
+  id: string;
+  type: string;
+  title: string;
+  who: string;
+  when: string;
+  standard: string;
+  control: string;
+};
 
-export const recentActivity = [
-  { id: "1", type: "evidence", text: 'Evidence uploaded for "A.8.7 — Protection against malware"',    who: "Sarah K.",  when: "2 hours ago",   icon: "FileCheck2",    iconClass: "text-blue-600 bg-blue-50"  },
-  { id: "2", type: "status",   text: '"5.2 Quality Policy" marked as Implemented',                     who: "James O.",  when: "4 hours ago",   icon: "CheckCircle2",  iconClass: "text-green-600 bg-green-50" },
-  { id: "3", type: "task",     text: "New task: Review supplier agreements for ISO 9001 clause 8.4",   who: "Admin",     when: "Yesterday",     icon: "Clock",         iconClass: "text-amber-600 bg-amber-50" },
-  { id: "4", type: "alert",    text: '"4.1 Understanding context" is overdue — 3 days past target',    who: "System",    when: "Yesterday",     icon: "AlertTriangle", iconClass: "text-red-600 bg-red-50"    },
-  { id: "5", type: "evidence", text: 'Evidence uploaded for "8.2 Emergency preparedness"',             who: "Tom R.",    when: "2 days ago",    icon: "FileCheck2",    iconClass: "text-blue-600 bg-blue-50"  },
-];
+type TaskEvent = {
+  id: string;
+  title: string;
+  standard: string;
+  dueDate: string | null;
+  priority: string;
+  assigneeName: string;
+  status: string;
+};
 
-export const upcomingTasks = [
-  { id: "9",  title: "Review supplier security assessments",     standard: "ISO 27001", dueDate: "Apr 2, 2026",  priority: "HIGH",     assignee: "Sarah K.",   description: "Review all third-party supplier security questionnaires and update the risk register.", status: "In Progress" },
-  { id: "10", title: "Submit Q1 compliance evidence package",    standard: "ISO 9001",  dueDate: "Apr 4, 2026",  priority: "CRITICAL", assignee: "James O.",   description: "Compile and submit Q1 compliance evidence for management review.", status: "In Progress" },
-  { id: "11", title: "Complete environmental context review",    standard: "ISO 14001", dueDate: "Mar 30, 2026", priority: "MEDIUM",   assignee: "Tom R.",     description: "Review and update the environmental context analysis document.", status: "Todo" },
-  { id: "1",  title: "Complete risk assessment documentation",   standard: "ISO 27001", dueDate: "Apr 12, 2026", priority: "HIGH",     assignee: "Sarah K.",   description: "Review and finalise all risk assessment documentation.",  status: "In Progress" },
-  { id: "2",  title: "Update environmental aspects register",    standard: "ISO 14001", dueDate: "Apr 15, 2026", priority: "MEDIUM",   assignee: "Tom R.",     description: "Update the environmental aspects register.",               status: "Todo"        },
-  { id: "3",  title: "Conduct internal audit for clause 9.2",    standard: "ISO 9001",  dueDate: "Apr 18, 2026", priority: "HIGH",     assignee: "James O.",   description: "Plan and execute internal audit for clause 9.2.",          status: "Todo"        },
-  { id: "4",  title: "Review AI system impact assessment",       standard: "ISO 42001", dueDate: "Apr 25, 2026", priority: "MEDIUM",   assignee: "Unassigned", description: "Conduct impact assessment of AI systems in scope.",        status: "Todo"        },
-];
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "Just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d ago`;
+  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -80,14 +89,16 @@ const priorityColors: Record<string, string> = {
   CRITICAL: "bg-red-200 text-red-800",
 };
 
-const TODAY = new Date("2026-04-07");
-
 function isOverdue(dueDate: string) {
-  try { return new Date(dueDate) < TODAY; } catch { return false; }
+  try { return new Date(dueDate) < new Date(); } catch { return false; }
 }
 
-const iconMap: Record<string, React.ElementType> = {
-  FileCheck2, CheckCircle2, Clock, AlertTriangle,
+const activityIconMap: Record<string, { icon: React.ElementType; cls: string }> = {
+  evidence: { icon: FileCheck2,    cls: "text-blue-600 bg-blue-50"   },
+  task:     { icon: Clock,         cls: "text-amber-600 bg-amber-50" },
+  comment:  { icon: MessageSquare, cls: "text-purple-600 bg-purple-50"},
+  alert:    { icon: AlertTriangle, cls: "text-red-600 bg-red-50"     },
+  status:   { icon: CheckCircle2,  cls: "text-green-600 bg-green-50" },
 };
 
 // ── SVG Charts ────────────────────────────────────────────────────────────────
@@ -223,10 +234,12 @@ type ProjectStats = {
 };
 
 export default function DashboardPage() {
-  const [showWelcome, setShowWelcome] = useState(false);
-  const [projects, setProjects] = useState<ProjectStats[]>([]);
-  const [taskCount, setTaskCount] = useState(0);
-  const [loadingData, setLoadingData] = useState(true);
+  const [showWelcome,  setShowWelcome]  = useState(false);
+  const [projects,     setProjects]     = useState<ProjectStats[]>([]);
+  const [openTasks,    setOpenTasks]    = useState<TaskEvent[]>([]);
+  const [activity,     setActivity]     = useState<ActivityEvent[]>([]);
+  const [taskCount,    setTaskCount]    = useState(0);
+  const [loadingData,  setLoadingData]  = useState(true);
   const org = useOrg();
 
   useEffect(() => {
@@ -244,9 +257,14 @@ export default function DashboardPage() {
     Promise.all([
       fetch("/api/projects").then((r) => r.json()),
       fetch("/api/tasks").then((r) => r.json()),
-    ]).then(([projData, taskData]) => {
+      fetch("/api/activity").then((r) => r.json()),
+    ]).then(([projData, taskData, activityData]) => {
       setProjects(projData.projects ?? []);
-      setTaskCount((taskData.tasks ?? []).filter((t: { status: string }) => t.status !== "DONE").length);
+      const allTasks: TaskEvent[] = taskData.tasks ?? [];
+      const pending = allTasks.filter((t) => t.status !== "DONE");
+      setOpenTasks(pending.slice(0, 7));
+      setTaskCount(pending.length);
+      setActivity((activityData.activity ?? []).slice(0, 5));
       setLoadingData(false);
     }).catch(() => setLoadingData(false));
   }, []);
@@ -485,28 +503,33 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-1">
-              {recentActivity.map((activity) => {
-                const Icon = iconMap[activity.icon] ?? FileCheck2;
-                return (
-                  <li key={activity.id}>
-                    <Link href={`/activity?id=${activity.id}`}
-                      className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer group">
-                      <span className={`size-8 rounded-lg flex items-center justify-center shrink-0 ${activity.iconClass}`}>
-                        <Icon className="size-4" />
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-foreground leading-snug group-hover:text-blue-600 transition-colors">
-                          {activity.text}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{activity.who} · {activity.when}</p>
-                      </div>
-                      <ArrowRight className="size-3.5 text-muted-foreground shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+            {activity.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">No activity yet — upload evidence or create tasks to see activity here.</p>
+            ) : (
+              <ul className="space-y-1">
+                {activity.map((item) => {
+                  const cfg = activityIconMap[item.type] ?? activityIconMap.task;
+                  const Icon = cfg.icon;
+                  return (
+                    <li key={item.id}>
+                      <Link href={`/activity?id=${item.id}`}
+                        className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer group">
+                        <span className={`size-8 rounded-lg flex items-center justify-center shrink-0 ${cfg.cls}`}>
+                          <Icon className="size-4" />
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-foreground leading-snug group-hover:text-blue-600 transition-colors line-clamp-2">
+                            {item.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{item.who} · {timeAgo(item.when)}</p>
+                        </div>
+                        <ArrowRight className="size-3.5 text-muted-foreground shrink-0 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </CardContent>
         </Card>
 
@@ -518,10 +541,10 @@ export default function DashboardPage() {
                 <CardTitle className="text-base flex items-center gap-2">
                   <ListTodo className="size-4 text-amber-500" />
                   Open Tasks
-                  {upcomingTasks.filter((t) => isOverdue(t.dueDate)).length > 0 && (
+                  {openTasks.filter((t) => t.dueDate && isOverdue(t.dueDate)).length > 0 && (
                     <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200">
                       <AlertTriangle className="size-2.5" />
-                      {upcomingTasks.filter((t) => isOverdue(t.dueDate)).length} overdue
+                      {openTasks.filter((t) => t.dueDate && isOverdue(t.dueDate)).length} overdue
                     </span>
                   )}
                 </CardTitle>
@@ -535,61 +558,53 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent className="pt-0">
-            {/* Overdue alert banner */}
-            {upcomingTasks.some((t) => isOverdue(t.dueDate)) && (
-              <div className="mb-3 rounded-lg bg-red-50 border border-red-200 px-3 py-2 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5">
-                  <AlertTriangle className="size-3.5 text-red-500 shrink-0" />
-                  <p className="text-xs font-medium text-red-700">
-                    {upcomingTasks.filter((t) => isOverdue(t.dueDate)).length} task{upcomingTasks.filter((t) => isOverdue(t.dueDate)).length !== 1 ? "s are" : " is"} past due — action needed
-                  </p>
-                </div>
-                <Link href="/tasks?filter=overdue"
-                  className="text-[11px] font-semibold text-red-600 hover:text-red-700 flex items-center gap-0.5 shrink-0 whitespace-nowrap">
-                  Open overdue <ArrowRight className="size-3" />
-                </Link>
-              </div>
+            {openTasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-6">No open tasks. Create tasks from the Tasks page.</p>
+            ) : (
+              <ul className="space-y-2">
+                {openTasks.map((task) => {
+                  const od = task.dueDate ? isOverdue(task.dueDate) : false;
+                  const dueFmt = task.dueDate
+                    ? new Date(task.dueDate).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+                    : "No due date";
+                  return (
+                    <li key={task.id}>
+                      <Link href={`/tasks?id=${task.id}`}
+                        className={`flex items-start gap-3 p-3 rounded-lg border transition-all cursor-pointer group ${
+                          od
+                            ? "border-red-200 bg-red-50/60 hover:bg-red-50 hover:border-red-300"
+                            : "border-border hover:border-blue-200 hover:bg-muted/40"
+                        }`}>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            {od && <AlertTriangle className="size-3 text-red-500 shrink-0" />}
+                            <p className={`text-sm font-medium leading-snug truncate transition-colors ${
+                              od ? "text-red-800 group-hover:text-red-700" : "text-foreground group-hover:text-blue-600"
+                            }`}>
+                              {task.title}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <Badge variant="outline" className="text-[10px] h-4 px-1.5">{task.standard}</Badge>
+                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${priorityColors[task.priority] ?? ""}`}>
+                              {task.priority}
+                            </span>
+                            <span className={`text-xs flex items-center gap-1 font-medium ${od ? "text-red-600" : "text-muted-foreground"}`}>
+                              <Clock className="size-3" />
+                              {od ? `Overdue · ${dueFmt}` : dueFmt}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <User className="size-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">{task.assigneeName ?? "Unassigned"}</span>
+                        </div>
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
             )}
-            <ul className="space-y-2">
-              {upcomingTasks.map((task) => {
-                const od = isOverdue(task.dueDate);
-                return (
-                  <li key={task.id}>
-                    <Link href={`/tasks?id=${task.id}`}
-                      className={`flex items-start gap-3 p-3 rounded-lg border transition-all cursor-pointer group ${
-                        od
-                          ? "border-red-200 bg-red-50/60 hover:bg-red-50 hover:border-red-300"
-                          : "border-border hover:border-blue-200 hover:bg-muted/40"
-                      }`}>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-0.5">
-                          {od && <AlertTriangle className="size-3 text-red-500 shrink-0" />}
-                          <p className={`text-sm font-medium leading-snug truncate transition-colors ${
-                            od ? "text-red-800 group-hover:text-red-700" : "text-foreground group-hover:text-blue-600"
-                          }`}>
-                            {task.title}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          <Badge variant="outline" className="text-[10px] h-4 px-1.5">{task.standard}</Badge>
-                          <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${priorityColors[task.priority]}`}>
-                            {task.priority}
-                          </span>
-                          <span className={`text-xs flex items-center gap-1 font-medium ${od ? "text-red-600" : "text-muted-foreground"}`}>
-                            <Clock className="size-3" />
-                            {od ? `Overdue · ${task.dueDate}` : task.dueDate}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <User className="size-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground whitespace-nowrap">{task.assignee}</span>
-                      </div>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
           </CardContent>
         </Card>
       </div>}

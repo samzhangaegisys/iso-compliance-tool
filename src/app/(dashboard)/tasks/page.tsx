@@ -119,6 +119,15 @@ const DB_STATUS_MAP: Record<string, Status> = {
   DONE:        "Done",
 };
 
+// Standard code → display name
+const STD_CODE_TO_NAME: Record<string, string> = {
+  ISO27001: "ISO 27001",
+  ISO9001:  "ISO 9001",
+  ISO14001: "ISO 14001",
+  ISO45001: "ISO 45001",
+  ISO42001: "ISO 42001",
+};
+
 const seedTasks: TaskItem[] = [
   {
     id: "1", title: "Complete risk assessment documentation", standard: "ISO 27001", control: "6.1.2",
@@ -1403,7 +1412,7 @@ function TasksPageInner() {
         }) => ({
           id: t.id,
           title: t.title,
-          standard: t.standard,
+          standard: STD_CODE_TO_NAME[t.standard] ?? t.standard,
           control: t.controlRef,
           dueDate: t.dueDate ? t.dueDate.slice(0, 10) : "",
           priority: (["CRITICAL","HIGH","MEDIUM","LOW"].includes(t.priority) ? t.priority : "MEDIUM") as Priority,
@@ -1453,6 +1462,15 @@ function TasksPageInner() {
       setApprovalFor({ taskId: draggingId, toStatus });
     } else {
       setTasks((prev) => prev.map((t) => t.id === draggingId ? { ...t, status: toStatus } : t));
+      // Persist to DB (map UI status back to DB enum)
+      const DB_STATUS_REVERSE: Record<Status, string> = {
+        "Todo": "TODO", "In Progress": "IN_PROGRESS", "In Review": "IN_PROGRESS", "Done": "DONE",
+      };
+      fetch(`/api/tasks/${draggingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: DB_STATUS_REVERSE[toStatus] }),
+      }).catch(() => {/* silent — optimistic update already applied */});
     }
     setDraggingId(null);
     setDragOverCol(null);
