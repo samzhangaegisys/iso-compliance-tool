@@ -7,9 +7,10 @@ import { verifyTurnstile } from "./turnstile";
 import { verifyPassword } from "./password";
 import { prisma } from "./prisma";
 
-// Master admin account — internal access only, never exposed to users
-const MASTER_EMAIL    = "admin@isocomply.io";
-const MASTER_PASSWORD = "Admin@ISOComply1!";
+// Master admin account — set MASTER_ADMIN_EMAIL and MASTER_ADMIN_PASSWORD in .env.local
+// Leave these unset in production to disable master login entirely.
+const MASTER_EMAIL    = process.env.MASTER_ADMIN_EMAIL ?? "";
+const MASTER_PASSWORD = process.env.MASTER_ADMIN_PASSWORD ?? "";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -28,8 +29,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        // Master admin — internal access only
+        // Master admin — only active when env vars are set
         if (
+          MASTER_EMAIL &&
+          MASTER_PASSWORD &&
           credentials.email === MASTER_EMAIL &&
           credentials.password === MASTER_PASSWORD
         ) {

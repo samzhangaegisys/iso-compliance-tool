@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { writeAuditLog } from "@/lib/audit";
+
+const UpdateOrgSchema = z.object({
+  name: z.string().min(1).max(100),
+  slug: z.string().min(1).max(60).regex(/^[a-z0-9-]+$/, "Slug must contain only lowercase letters, numbers, and hyphens"),
+});
 
 export async function PATCH(req: Request) {
   const session = await auth();
@@ -12,14 +19,26 @@ export async function PATCH(req: Request) {
   });
   if (!membership) return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
 
-  const { name, slug } = await req.json();
-  if (!name || !slug) return NextResponse.json({ error: "Name and slug are required" }, { status: 400 });
+  const parsed = UpdateOrgSchema.safeParse(await req.json());
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input." }, { status: 400 });
+  }
+  const { name, slug } = parsed.data;
 
   const slugClean = slug.toLowerCase().replace(/[^a-z0-9-]/g, "-");
 
   const org = await prisma.organisation.update({
     where: { id: membership.orgId },
     data: { name, slug: slugClean },
+  });
+
+  await writeAuditLog({
+    orgId: membership.orgId,
+    userId: session.user.id,
+    userName: session.user.name ?? session.user.email ?? "Unknown",
+    action: "org.updated",
+    entityId: org.id,
+    meta: { name, slug: slugClean },
   });
 
   return NextResponse.json({ org: { id: org.id, name: org.name, slug: org.slug } });

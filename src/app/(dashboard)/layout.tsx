@@ -245,16 +245,19 @@ function TopBar() {
           variant="ghost"
           size="icon"
           className="relative"
+          aria-label="Notifications"
+          aria-haspopup="true"
+          aria-expanded={notifOpen}
           onClick={() => { setNotifOpen((o) => !o); setPlanOpen(false); }}
         >
           <Bell className="size-4" />
           {unread > 0 && (
-            <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-blue-600" />
+            <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-blue-600" aria-hidden="true" />
           )}
         </Button>
 
         {notifOpen && (
-          <div className="absolute right-0 top-full mt-2 w-80 rounded-2xl border border-border bg-background shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-50">
+          <div role="menu" aria-label="Notifications" className="absolute right-0 top-full mt-2 w-80 rounded-2xl border border-border bg-background shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200 z-50">
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
               <p className="text-sm font-semibold text-foreground">
@@ -302,6 +305,9 @@ function TopBar() {
         <div ref={planRef} className="relative">
           <button
             onClick={() => { setPlanOpen((o) => !o); setNotifOpen(false); }}
+            aria-haspopup="true"
+            aria-expanded={planOpen}
+            aria-label="Switch plan"
             className="flex items-center gap-2 rounded-lg border border-border px-2.5 py-1.5 text-sm cursor-pointer hover:bg-muted transition-colors"
           >
             <div className="size-5 rounded bg-blue-100 text-blue-700 text-[10px] font-bold flex items-center justify-center">
@@ -369,6 +375,9 @@ function TopBar() {
             variant="ghost"
             size="icon"
             title="Organisation settings"
+            aria-label="Organisation settings"
+            aria-haspopup="true"
+            aria-expanded={orgMenuOpen}
             onClick={() => { setOrgMenuOpen((o) => !o); setUserMenuOpen(false); setNotifOpen(false); setPlanOpen(false); }}
           >
             <Building2 className="size-4" />
@@ -382,9 +391,9 @@ function TopBar() {
               </div>
               <div className="p-1.5">
                 {[
-                  { label: "Organisation Profile", href: "/settings", icon: Building2 },
-                  { label: "Members & Roles",       href: "/team",     icon: Users },
-                  { label: "Subscription & Billing", href: "/settings", icon: CreditCard },
+                  { label: "Organisation Profile",  href: "/settings?tab=org",     icon: Building2 },
+                  { label: "Members & Roles",        href: "/team",                   icon: Users },
+                  { label: "Subscription & Billing", href: "/settings?tab=billing",  icon: CreditCard },
                 ].map(({ label, href, icon: Icon }) => (
                   <Link key={label} href={href} onClick={() => setOrgMenuOpen(false)}
                     className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-foreground hover:bg-muted transition-colors">
@@ -404,6 +413,9 @@ function TopBar() {
           onClick={() => { setUserMenuOpen((o) => !o); setOrgMenuOpen(false); setNotifOpen(false); setPlanOpen(false); }}
           className="size-8 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center hover:ring-2 hover:ring-blue-300 transition-all focus:outline-none"
           title={userName}
+          aria-label={`User menu for ${userName}`}
+          aria-haspopup="true"
+          aria-expanded={userMenuOpen}
         >
           {userInitials}
         </button>
@@ -423,12 +435,12 @@ function TopBar() {
 
             {/* Menu items */}
             <div className="p-1.5">
-              <Link href="/settings" onClick={() => setUserMenuOpen(false)}
+              <Link href="/settings?tab=profile" onClick={() => setUserMenuOpen(false)}
                 className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-foreground hover:bg-muted transition-colors">
                 <UserCog className="size-4 text-muted-foreground shrink-0" />
                 Edit Profile
               </Link>
-              <Link href="/settings#security" onClick={() => setUserMenuOpen(false)}
+              <Link href="/settings?tab=profile" onClick={() => setUserMenuOpen(false)}
                 className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-foreground hover:bg-muted transition-colors">
                 <KeyRound className="size-4 text-muted-foreground shrink-0" />
                 Security & MFA

@@ -244,21 +244,6 @@ function LoginForm() {
           </ul>
         </div>
 
-        {/* Testimonial */}
-        <div className="relative border border-white/10 rounded-2xl p-5 bg-white/[0.03]">
-          <p className="text-sm text-slate-300 leading-relaxed mb-4">
-            &ldquo;ISOComply cut our ISO 27001 certification timeline from 18 months to just 4. The gap analysis alone saved us weeks of spreadsheet work.&rdquo;
-          </p>
-          <div className="flex items-center gap-3">
-            <div className="size-8 rounded-full bg-gradient-to-br from-blue-500 to-violet-500 flex items-center justify-center">
-              <span className="text-xs font-bold text-white">SM</span>
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-white">Sarah Mitchell</p>
-              <p className="text-[10px] text-slate-500">CISO, Nexus Corp</p>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* -- Right panel: form -- */}
@@ -329,7 +314,7 @@ function LoginForm() {
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <Label htmlFor="password" className="text-sm font-medium text-slate-700">Password</Label>
-                    <a href="#" className="text-xs text-blue-600 hover:text-blue-700 font-medium">Forgot password?</a>
+                    <Link href="/forgot-password" className="text-xs text-blue-600 hover:text-blue-700 font-medium">Forgot password?</Link>
                   </div>
                   <div className="relative">
                     <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-slate-400 pointer-events-none" />

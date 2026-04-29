@@ -6,12 +6,11 @@ import {
   CheckCircle2, Clock, XCircle, MinusCircle,
   ChevronLeft, ChevronRight, BarChart3, AlertTriangle,
   FileText, ListTodo, Download, Search, Filter,
-  Lightbulb, Check, Info,
-  Bot, Send, Sparkles, X as XClose,
+  Lightbulb, Check, Info, Loader2, RotateCcw,
+  Bot, Send, Sparkles, X as XClose, FolderOpen, Plus,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { usePlan } from "@/lib/plan-context";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -514,11 +513,101 @@ function AIAdvisor({ std, ctrl, onClose }: {
 
 // ── Assessment view ───────────────────────────────────────────────────────────
 
-function AssessmentView({ std, assessment, onChange, onAskAI }: {
+function CompletionModal({ std, assessment, onViewReport, onCreateTasks, onClose }: {
+  std: Standard;
+  assessment: Assessment;
+  onViewReport: () => void;
+  onCreateTasks: () => Promise<void>;
+  onClose: () => void;
+}) {
+  const [creating, setCreating] = useState(false);
+  const controls  = allControls(std);
+  const score     = computeScore(controls, assessment);
+  const critical  = controls.filter((c) => c.risk === "CRITICAL" && (assessment[c.ref]?.rating ?? "NOT_STARTED") !== "IMPLEMENTED" && assessment[c.ref]?.rating !== "NOT_APPLICABLE").length;
+  const totalGaps = controls.filter((c) => { const r = assessment[c.ref]?.rating ?? "NOT_STARTED"; return r !== "IMPLEMENTED" && r !== "NOT_APPLICABLE"; }).length;
+
+  const scoreColor = score >= 80 ? "#10b981" : score >= 60 ? "#3b82f6" : score >= 40 ? "#f59e0b" : "#ef4444";
+  const scoreText  = score >= 80 ? "text-emerald-600" : score >= 60 ? "text-blue-600" : score >= 40 ? "text-amber-600" : "text-red-600";
+  const scoreLabel = score >= 80 ? "Certification ready" : score >= 60 ? "Good progress" : score >= 40 ? "Remediation needed" : "Significant gaps";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative w-full max-w-md bg-card rounded-2xl shadow-2xl border border-border animate-in zoom-in-95 duration-200">
+        <button onClick={onClose} className="absolute top-4 right-4 text-muted-foreground hover:text-foreground transition-colors">
+          <XClose className="size-4" />
+        </button>
+
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4 text-center border-b border-border">
+          <div className="size-12 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-3">
+            <CheckCircle2 className="size-6 text-emerald-600" />
+          </div>
+          <h2 className="text-lg font-bold text-foreground">Assessment complete</h2>
+          <p className="text-xs text-muted-foreground mt-1">You've reviewed all {std.short} sections</p>
+        </div>
+
+        {/* Score + stats */}
+        <div className="px-6 py-5 flex items-center gap-6">
+          <div className="relative shrink-0">
+            <Ring score={score} size={88} stroke={9} color={scoreColor} />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <p className={`text-lg font-bold ${scoreText}`}>{score}%</p>
+            </div>
+          </div>
+          <div className="flex-1 space-y-2.5">
+            <p className={`text-sm font-semibold ${scoreText}`}>{scoreLabel}</p>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Total gaps</span>
+                <span className="font-semibold text-foreground">{totalGaps}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Critical gaps</span>
+                <span className={`font-bold ${critical > 0 ? "text-red-600" : "text-emerald-600"}`}>{critical}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Controls assessed</span>
+                <span className="font-semibold text-foreground">{controls.length}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tip */}
+        {critical > 0 && (
+          <div className="mx-6 mb-4 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 flex gap-2">
+            <Lightbulb className="size-3.5 text-amber-500 shrink-0 mt-0.5" />
+            <p className="text-[11px] text-amber-700 leading-relaxed">
+              You have <strong>{critical} critical gap{critical > 1 ? "s" : ""}</strong> — address these first as certifiers will check them immediately.
+            </p>
+          </div>
+        )}
+
+        {/* CTAs */}
+        <div className="px-6 pb-6 flex flex-col gap-2.5">
+          <button
+            disabled={creating}
+            onClick={async () => { setCreating(true); await onCreateTasks(); setCreating(false); }}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-60 text-white text-sm font-semibold transition-colors shadow-sm">
+            {creating ? <Loader2 className="size-4 animate-spin" /> : <ListTodo className="size-4" />}
+            {creating ? "Creating tasks…" : `Create tasks from ${totalGaps} gaps`}
+          </button>
+          <button onClick={onViewReport}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-border bg-card hover:bg-muted text-sm font-medium transition-colors">
+            <BarChart3 className="size-4 text-blue-600" /> View full report
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AssessmentView({ std, assessment, onChange, onAskAI, onComplete }: {
   std: Standard;
   assessment: Assessment;
   onChange: (ref: string, rating: Rating, notes: string) => void;
   onAskAI: (ctrl: Control) => void;
+  onComplete: () => void;
 }) {
   const [clauseIdx, setClauseIdx] = useState(0);
   const [expandedNotes, setExpandedNotes] = useState<string | null>(null);
@@ -658,9 +747,10 @@ function AssessmentView({ std, assessment, onChange, onAskAI }: {
             Next section <ChevronRight className="size-4" />
           </button>
         ) : (
-          <div className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-100 text-emerald-700 text-sm font-semibold">
-            <Check className="size-4" /> All sections reviewed
-          </div>
+          <button onClick={onComplete}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition-colors shadow-sm">
+            <Check className="size-4" /> See my results
+          </button>
         )}
       </div>
     </div>
@@ -857,50 +947,129 @@ function ReportView({ std, assessment, onCreateTasks }: {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+type ProjectOption = {
+  id: string;
+  name: string;
+  standardCode: string;
+  standardName: string;
+  status: string;
+};
+
 export default function GapAnalysisPage() {
-  const { plan } = usePlan();
-  // Starter plan is locked to ISO 27001 (the standard selected at workspace creation)
-  const starterStd = "ISO27001";
-  const [stdCode,     setStdCode]     = useState(plan === "starter" ? starterStd : "ISO27001");
-  const [mode,        setMode]        = useState<Mode>("assess");
-  const [assessments, setAssessments] = useState<Record<string, Assessment>>({});
-  const [taskBanner,  setTaskBanner]  = useState<string | null>(null);
-  const [aiOpen,      setAiOpen]      = useState(false);
-  const [aiCtrl,      setAiCtrl]      = useState<Control | null>(null);
+  const [projects,          setProjects]          = useState<ProjectOption[]>([]);
+  const [projectsLoading,   setProjectsLoading]   = useState(true);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [mode,              setMode]              = useState<Mode>("assess");
+  const [assessment,        setAssessmentState]   = useState<Assessment>({});
+  const [savedAt,           setSavedAt]           = useState<string | null>(null);
+  const [taskBanner,        setTaskBanner]        = useState<string | null>(null);
+  const [taskError,         setTaskError]         = useState<string | null>(null);
+  const [completionOpen,    setCompletionOpen]    = useState(false);
+  const [aiOpen,            setAiOpen]            = useState(false);
+  const [aiCtrl,            setAiCtrl]            = useState<Control | null>(null);
 
-  const std = STANDARDS.find((s) => s.code === stdCode)!;
-  const assessment: Assessment = assessments[stdCode] ?? {};
+  // Fetch active projects on mount
+  useEffect(() => {
+    fetch("/api/projects")
+      .then((r) => r.json())
+      .then((data) => {
+        const active = (data.projects ?? []).filter(
+          (p: ProjectOption) => p.status === "ACTIVE" || p.status === "PAUSED"
+        );
+        setProjects(active);
+        if (active.length > 0) setSelectedProjectId(active[0].id);
+        setProjectsLoading(false);
+      })
+      .catch(() => setProjectsLoading(false));
+  }, []);
 
-  function handleAskAI(ctrl: Control) {
-    setAiCtrl(ctrl);
-    setAiOpen(true);
-  }
+  // Load saved assessment from localStorage when project changes
+  useEffect(() => {
+    if (!selectedProjectId) return;
+    try {
+      const raw = localStorage.getItem(`gap_assessment_${selectedProjectId}`);
+      if (!raw) { setAssessmentState({}); setSavedAt(null); setMode("assess"); return; }
+      const parsed = JSON.parse(raw) as { data: Assessment; savedAt: string };
+      setAssessmentState(parsed.data ?? {});
+      setSavedAt(parsed.savedAt ?? null);
+      setMode(Object.keys(parsed.data ?? {}).length > 0 ? "report" : "assess");
+    } catch {
+      setAssessmentState({}); setSavedAt(null);
+    }
+  }, [selectedProjectId]);
+
+  const selectedProject = projects.find((p) => p.id === selectedProjectId);
+  const stdCode         = selectedProject?.standardCode ?? "ISO27001";
+  const std             = STANDARDS.find((s) => s.code === stdCode) ?? STANDARDS[0];
+
+  function handleAskAI(ctrl: Control) { setAiCtrl(ctrl); setAiOpen(true); }
 
   function setRating(ref: string, rating: Rating, notes: string) {
-    setAssessments((prev) => ({
-      ...prev,
-      [stdCode]: { ...(prev[stdCode] ?? {}), [ref]: { rating, notes } },
-    }));
+    if (!selectedProjectId) return;
+    setAssessmentState((prev) => {
+      const updated = { ...prev, [ref]: { rating, notes } };
+      try {
+        const ts = new Date().toISOString();
+        localStorage.setItem(`gap_assessment_${selectedProjectId}`, JSON.stringify({ data: updated, savedAt: ts }));
+        setSavedAt(ts);
+      } catch { /* ignore */ }
+      return updated;
+    });
   }
 
-  function handleCreateTasks(gaps: Control[]) {
-    setTaskBanner(`${gaps.length} tasks created in the Tasks board from ${std.short} gaps.`);
-    setTimeout(() => setTaskBanner(null), 5000);
+  function clearAssessment() {
+    if (!selectedProjectId) return;
+    setAssessmentState({});
+    setSavedAt(null);
+    setMode("assess");
+    try { localStorage.removeItem(`gap_assessment_${selectedProjectId}`); } catch { /* ignore */ }
+  }
+
+  async function handleCreateTasks(gaps: Control[]) {
+    if (!selectedProjectId) return;
+    setTaskError(null);
+    try {
+      const res  = await fetch("/api/gap-analysis/create-tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId: selectedProjectId,
+          gaps: gaps.map((g) => ({ ref: g.ref, title: g.title, risk: g.risk, guidance: g.guidance })),
+        }),
+      });
+      const data = await res.json();
+      const msg = data.created > 0
+        ? `${data.created} task${data.created !== 1 ? "s" : ""} created in "${data.projectName}"${data.skipped > 0 ? ` · ${data.skipped} already existed` : ""}`
+        : `All gaps already have tasks in "${data.projectName}" — nothing duplicated`;
+      setTaskBanner(msg);
+      setTimeout(() => setTaskBanner(null), 8000);
+    } catch {
+      setTaskError("Failed to create tasks. Please try again.");
+    }
   }
 
   const controls = allControls(std);
   const rated    = controls.filter((c) => (assessment[c.ref]?.rating ?? "NOT_STARTED") !== "NOT_STARTED").length;
   const score    = computeScore(controls, assessment);
+  const lastRun  = savedAt ? new Date(savedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : null;
 
   return (
     <div className="space-y-6 pb-10">
-      {/* Banner */}
+      {/* Success banner */}
       {taskBanner && (
         <div className="fixed top-4 right-4 z-50 flex items-center gap-3 px-4 py-3 rounded-xl bg-emerald-600 text-white shadow-xl animate-in slide-in-from-top-2 duration-300">
           <Check className="size-4 shrink-0" />
           <span className="text-sm font-medium">{taskBanner}</span>
           <Link href="/tasks" className="text-xs underline underline-offset-2">View tasks →</Link>
           <button onClick={() => setTaskBanner(null)} className="ml-1 opacity-70 hover:opacity-100"><XCircle className="size-4" /></button>
+        </div>
+      )}
+      {/* Error banner */}
+      {taskError && (
+        <div className="fixed top-4 right-4 z-50 flex items-center gap-3 px-4 py-3 rounded-xl bg-red-600 text-white shadow-xl animate-in slide-in-from-top-2 duration-300">
+          <AlertTriangle className="size-4 shrink-0" />
+          <span className="text-sm font-medium">{taskError}</span>
+          <button onClick={() => setTaskError(null)} className="ml-1 opacity-70 hover:opacity-100"><XCircle className="size-4" /></button>
         </div>
       )}
 
@@ -913,116 +1082,140 @@ export default function GapAnalysisPage() {
               <Sparkles className="size-3" /> AI-Guided
             </span>
           </h1>
-          <p className="text-sm text-muted-foreground">
-            Rate each control, then let the AI advisor guide you through implementation
-          </p>
+          <p className="text-sm text-muted-foreground">Rate each control against your project to identify gaps</p>
         </div>
-        <div className="flex items-center gap-2">
-          {rated > 0 && (
-            <span className="text-xs text-muted-foreground">{rated}/{controls.length} rated · <span className="font-semibold text-blue-600">{score}%</span></span>
-          )}
-          <button onClick={() => { setAiCtrl(null); setAiOpen(true); }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-violet-200 bg-violet-50 hover:bg-violet-100 text-violet-700 text-sm font-medium transition-colors">
-            <Bot className="size-4" /> Ask AI
-          </button>
-          <button onClick={() => setMode(mode === "assess" ? "report" : "assess")}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-border bg-card hover:bg-muted text-sm font-medium transition-colors">
-            {mode === "assess"
-              ? <><BarChart3 className="size-4 text-blue-600" /> View Report</>
-              : <><Search className="size-4 text-blue-600" /> Continue Assessment</>}
-          </button>
-        </div>
-      </div>
-
-      {/* Standard selector */}
-      {plan === "starter" && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 flex items-center gap-2">
-          <AlertTriangle className="size-3.5 text-amber-600 shrink-0" />
-          <p className="text-xs text-amber-700">
-            <strong>Starter plan</strong> — locked to your selected standard (ISO 27001).{" "}
-            <Link href="/#pricing" className="underline hover:no-underline">Upgrade to Professional</Link> for all 5 standards.
-          </p>
-        </div>
-      )}
-      <div className="flex flex-wrap gap-2">
-        {STANDARDS.map((s) => {
-          const a       = assessments[s.code] ?? {};
-          const sc      = computeScore(allControls(s), a);
-          const rt      = allControls(s).filter((c) => (a[c.ref]?.rating ?? "NOT_STARTED") !== "NOT_STARTED").length;
-          const locked  = plan === "starter" && s.code !== starterStd;
-          return (
-            <button key={s.code}
-              onClick={() => !locked && setStdCode(s.code)}
-              disabled={locked}
-              title={locked ? "Upgrade to Professional to access this standard" : undefined}
-              className={`flex items-center gap-2.5 px-3.5 py-2 rounded-xl border-2 text-xs font-medium transition-all ${
-                locked
-                  ? "border-border bg-muted/30 text-muted-foreground/40 cursor-not-allowed"
-                  : stdCode === s.code
-                    ? "border-blue-500 bg-blue-50 text-blue-700"
-                    : "border-border bg-card text-muted-foreground hover:bg-muted/50"
-              }`}>
-              <span>{s.short}</span>
-              {locked && <span className="text-[9px] bg-amber-100 text-amber-600 px-1 py-0.5 rounded">Pro</span>}
-              {!locked && rt > 0 && (
-                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${sc >= 70 ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-700"}`}>
-                  {sc}%
-                </span>
-              )}
+        {selectedProjectId && (
+          <div className="flex items-center gap-2 flex-wrap justify-end">
+            {lastRun && <span className="text-xs text-muted-foreground">Last run: {lastRun}</span>}
+            {rated > 0 && !lastRun && (
+              <span className="text-xs text-muted-foreground">{rated}/{controls.length} rated · <span className="font-semibold text-blue-600">{score}%</span></span>
+            )}
+            {lastRun && (
+              <button onClick={clearAssessment}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-card hover:bg-muted text-xs font-medium text-muted-foreground transition-colors">
+                <RotateCcw className="size-3.5" /> Start fresh
+              </button>
+            )}
+            <button onClick={() => { setAiCtrl(null); setAiOpen(true); }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-violet-200 bg-violet-50 hover:bg-violet-100 text-violet-700 text-sm font-medium transition-colors">
+              <Bot className="size-4" /> Ask AI
             </button>
-          );
-        })}
-      </div>
-
-      {/* How it works (for first-time users) */}
-      {rated === 0 && mode === "assess" && (
-        <div className="rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4">
-          <p className="text-sm font-semibold text-blue-800 mb-2 flex items-center gap-2">
-            <Lightbulb className="size-4 text-blue-500" /> How the gap analysis works
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {[
-              { step: "1", title: "Rate each control", body: "For each ISO control below, select whether it's Not in place, Partial, or Fully implemented. Click 'What does implemented look like?' for guidance." },
-              { step: "2", title: "Review your score", body: "Your compliance score updates in real time. Once you've rated all controls, click 'View Report' to see your prioritised gap list." },
-              { step: "3", title: "Build your plan", body: "Create tasks directly from your gaps with one click. Each gap becomes an assigned task with due date and priority on your Tasks board." },
-            ].map((s) => (
-              <div key={s.step} className="flex items-start gap-3">
-                <span className="size-6 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">{s.step}</span>
-                <div>
-                  <p className="text-xs font-semibold text-blue-800">{s.title}</p>
-                  <p className="text-[11px] text-blue-700 mt-0.5 leading-relaxed">{s.body}</p>
-                </div>
-              </div>
-            ))}
+            <button onClick={() => setMode(mode === "assess" ? "report" : "assess")}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-border bg-card hover:bg-muted text-sm font-medium transition-colors">
+              {mode === "assess"
+                ? <><BarChart3 className="size-4 text-blue-600" /> View Report</>
+                : <><Search className="size-4 text-blue-600" /> Re-run analysis</>}
+            </button>
           </div>
-        </div>
-      )}
-
-      {/* Main view */}
-      <div className={aiOpen ? "pr-0 sm:pr-96" : ""}>
-        {mode === "assess" ? (
-          <AssessmentView std={std} assessment={assessment} onChange={setRating} onAskAI={handleAskAI} />
-        ) : (
-          <ReportView std={std} assessment={assessment} onCreateTasks={handleCreateTasks} />
         )}
       </div>
 
-      {/* AI Advisor panel */}
-      {aiOpen && (
-        <>
-          <div className="fixed inset-0 bg-black/20 z-30 sm:hidden" onClick={() => setAiOpen(false)} />
-          <AIAdvisor std={std} ctrl={aiCtrl} onClose={() => setAiOpen(false)} />
-        </>
+      {/* Project selector */}
+      {projectsLoading ? (
+        <div className="flex gap-2">
+          {[1,2].map((i) => <div key={i} className="h-10 w-40 rounded-xl bg-muted animate-pulse" />)}
+        </div>
+      ) : projects.length === 0 ? (
+        <div className="rounded-2xl border-2 border-dashed border-border py-14 text-center">
+          <FolderOpen className="size-10 mx-auto mb-3 text-muted-foreground opacity-30" />
+          <p className="text-sm font-semibold text-foreground mb-1">No active projects</p>
+          <p className="text-xs text-muted-foreground mb-5 max-w-xs mx-auto">
+            Gap analysis is tied to a compliance project. Create a project first, then return here to run your analysis.
+          </p>
+          <Link href="/projects"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-colors shadow-sm">
+            <Plus className="size-4" /> Create a project
+          </Link>
+        </div>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {projects.map((p) => (
+            <button key={p.id} onClick={() => setSelectedProjectId(p.id)}
+              className={`flex items-center gap-2.5 px-3.5 py-2 rounded-xl border-2 text-xs font-medium transition-all ${
+                p.id === selectedProjectId
+                  ? "border-blue-500 bg-blue-50 text-blue-700"
+                  : "border-border bg-card text-muted-foreground hover:bg-muted/50"
+              }`}>
+              <FolderOpen className="size-3.5 shrink-0" />
+              <span>{p.name}</span>
+              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                p.id === selectedProjectId ? "bg-blue-200 text-blue-700" : "bg-muted text-muted-foreground"
+              }`}>{p.standardCode.replace("ISO", "ISO ")}</span>
+            </button>
+          ))}
+        </div>
       )}
 
-      {/* Floating AI button (when panel is closed) */}
-      {!aiOpen && (
-        <button onClick={() => { setAiCtrl(null); setAiOpen(true); }}
-          className="fixed bottom-6 right-6 z-30 flex items-center gap-2 px-4 py-3 rounded-full shadow-xl bg-gradient-to-r from-violet-600 to-blue-600 text-white text-sm font-semibold hover:shadow-2xl hover:scale-105 transition-all">
-          <Bot className="size-4" />
-          <span>AI Advisor</span>
-          <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
-        </button>
+      {/* Main content — only render when a project is selected */}
+      {selectedProjectId && (
+        <>
+          {/* How it works (first-time users) */}
+          {rated === 0 && mode === "assess" && (
+            <div className="rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4">
+              <p className="text-sm font-semibold text-blue-800 mb-2 flex items-center gap-2">
+                <Lightbulb className="size-4 text-blue-500" /> How the gap analysis works
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {[
+                  { step: "1", title: "Rate each control", body: "For each control, select whether it's Not in place, Partial, or Fully implemented. Each control includes guidance on what 'implemented' means." },
+                  { step: "2", title: "Review your score", body: "Your compliance score updates in real time. Once you've rated all controls, click 'View Report' to see your prioritised gap list." },
+                  { step: "3", title: "Build your plan", body: "Create tasks from your gaps with one click. Each task includes step-by-step guidance on how to close the gap." },
+                ].map((s) => (
+                  <div key={s.step} className="flex items-start gap-3">
+                    <span className="size-6 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">{s.step}</span>
+                    <div>
+                      <p className="text-xs font-semibold text-blue-800">{s.title}</p>
+                      <p className="text-[11px] text-blue-700 mt-0.5 leading-relaxed">{s.body}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Assessment / Report */}
+          <div className={aiOpen ? "pr-0 sm:pr-96" : ""}>
+            {mode === "assess" ? (
+              <AssessmentView std={std} assessment={assessment} onChange={setRating} onAskAI={handleAskAI} onComplete={() => setCompletionOpen(true)} />
+            ) : (
+              <ReportView std={std} assessment={assessment} onCreateTasks={handleCreateTasks} />
+            )}
+          </div>
+
+          {/* Completion modal */}
+          {completionOpen && (
+            <CompletionModal
+              std={std}
+              assessment={assessment}
+              onViewReport={() => { setCompletionOpen(false); setMode("report"); }}
+              onCreateTasks={async () => {
+                const gaps = allControls(std).filter((c) => { const r = assessment[c.ref]?.rating ?? "NOT_STARTED"; return r !== "IMPLEMENTED" && r !== "NOT_APPLICABLE"; });
+                await handleCreateTasks(gaps);
+                setCompletionOpen(false);
+                setMode("report");
+              }}
+              onClose={() => setCompletionOpen(false)}
+            />
+          )}
+
+          {/* AI Advisor panel */}
+          {aiOpen && (
+            <>
+              <div className="fixed inset-0 bg-black/20 z-30 sm:hidden" onClick={() => setAiOpen(false)} />
+              <AIAdvisor std={std} ctrl={aiCtrl} onClose={() => setAiOpen(false)} />
+            </>
+          )}
+
+          {/* Floating AI button */}
+          {!aiOpen && (
+            <button onClick={() => { setAiCtrl(null); setAiOpen(true); }}
+              className="fixed bottom-6 right-6 z-30 flex items-center gap-2 px-4 py-3 rounded-full shadow-xl bg-gradient-to-r from-violet-600 to-blue-600 text-white text-sm font-semibold hover:shadow-2xl hover:scale-105 transition-all">
+              <Bot className="size-4" />
+              <span>AI Advisor</span>
+              <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+            </button>
+          )}
+        </>
       )}
     </div>
   );

@@ -40,10 +40,12 @@ function initials(name: string) {
 // ── Invite Modal ───────────────────────────────────────────────────────────────
 
 function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (member: Member) => void }) {
-  const [email, setEmail] = useState("");
-  const [role,  setRole]  = useState("MEMBER");
-  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
-  const [error, setError] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName,  setLastName]  = useState("");
+  const [email,     setEmail]     = useState("");
+  const [role,      setRole]      = useState("MEMBER");
+  const [status,    setStatus]    = useState<"idle" | "loading" | "error">("idle");
+  const [error,     setError]     = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -54,7 +56,7 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
       const res = await fetch("/api/team/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), role }),
+        body: JSON.stringify({ email: email.trim(), role, firstName: firstName.trim(), lastName: lastName.trim() }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -83,6 +85,25 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>First name</Label>
+              <Input
+                placeholder="Jane"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Last name</Label>
+              <Input
+                placeholder="Smith"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+              />
+            </div>
+          </div>
           <div className="space-y-1.5">
             <Label>Email address <span className="text-red-500">*</span></Label>
             <Input
@@ -91,7 +112,6 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              autoFocus
             />
             <p className="text-xs text-muted-foreground">The person must already have an ISOComply account.</p>
           </div>

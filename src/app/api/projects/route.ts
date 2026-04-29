@@ -1,7 +1,18 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ISO_STANDARDS } from "@/lib/iso-data";
+import { writeAuditLog } from "@/lib/audit";
+
+const CreateProjectSchema = z.object({
+  standardCode: z.string().min(1).max(50),
+  name:         z.string().min(1).max(255),
+  description:  z.string().max(1000).optional(),
+  targetDate:   z.string().datetime().optional(),
+  startDate:    z.string().datetime().optional(),
+  leadUserId:   z.string().cuid().optional(),
+});
 
 export async function GET() {
   const session = await auth();
@@ -24,7 +35,7 @@ export async function GET() {
 
   return NextResponse.json({
     projects: projects.map((p) => {
-      const total = p.controls.length;
+      const total       = p.controls.length;
       const implemented = p.controls.filter((c) => c.status === "IMPLEMENTED").length;
       const inProgress  = p.controls.filter((c) => c.status === "IN_PROGRESS").length;
       const score = total > 0 ? Math.round((implemented / total) * 100) : 0;
@@ -59,14 +70,25 @@ export async function POST(req: Request) {
   });
   if (!membership) return NextResponse.json({ error: "No organisation found" }, { status: 400 });
 
-  const { standardCode, name, targetDate, startDate, description, leadUserId } = await req.json();
-  if (!standardCode || !name) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+  const parsed = CreateProjectSchema.safeParse(await req.json());
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input." }, { status: 400 });
+  }
+  const { standardCode, name, description, targetDate, startDate, leadUserId } = parsed.data;
 
-  // Find or create the IsoStandard from static data (ensures it exists even if not seeded)
+  // Validate leadUserId is a member of this org
+  if (leadUserId) {
+    const leadMember = await prisma.orgMember.findFirst({
+      where: { userId: leadUserId, orgId: membership.orgId },
+    });
+    if (!leadMember) {
+      return NextResponse.json({ error: "Lead user is not a member of this organisation" }, { status: 400 });
+    }
+  }
+
   let standard = await prisma.isoStandard.findUnique({ where: { code: standardCode } });
 
   if (!standard) {
-    // Seed this standard from the static iso-data
     const staticStd = ISO_STANDARDS.find((s) => s.code === standardCode);
     if (!staticStd) return NextResponse.json({ error: "Unknown standard code" }, { status: 400 });
 
@@ -93,7 +115,6 @@ export async function POST(req: Request) {
     });
   }
 
-  // Re-fetch with clauses/controls to create project controls
   const fullStandard = await prisma.isoStandard.findUnique({
     where: { id: standard.id },
     include: { clauses: { include: { controls: true } } },
@@ -119,6 +140,15 @@ export async function POST(req: Request) {
       },
     },
     include: { standard: true },
+  });
+
+  await writeAuditLog({
+    orgId: membership.orgId,
+    userId: session.user.id,
+    userName: session.user.name ?? session.user.email ?? "Unknown",
+    action: "project.created",
+    entityId: project.id,
+    meta: { name, standardCode },
   });
 
   return NextResponse.json({

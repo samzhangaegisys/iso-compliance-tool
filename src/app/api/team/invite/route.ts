@@ -1,6 +1,15 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { writeAuditLog } from "@/lib/audit";
+
+const InviteSchema = z.object({
+  email:     z.string().email().max(254),
+  role:      z.enum(["ADMIN", "MEMBER", "VIEWER"]).default("MEMBER"),
+  firstName: z.string().max(50).optional(),
+  lastName:  z.string().max(50).optional(),
+});
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -12,11 +21,11 @@ export async function POST(req: Request) {
   });
   if (!membership) return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
 
-  const { email, role = "MEMBER" } = await req.json();
-  if (!email) return NextResponse.json({ error: "Email is required" }, { status: 400 });
-
-  const validRoles = ["ADMIN", "MEMBER", "VIEWER"];
-  if (!validRoles.includes(role)) return NextResponse.json({ error: "Invalid role" }, { status: 400 });
+  const parsed = InviteSchema.safeParse(await req.json());
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input." }, { status: 400 });
+  }
+  const { email, role, firstName, lastName } = parsed.data;
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) {
@@ -36,18 +45,28 @@ export async function POST(req: Request) {
     );
   }
 
+  const fullName = [firstName?.trim(), lastName?.trim()].filter(Boolean).join(" ");
+
   const newMember = await prisma.orgMember.create({
     data: { orgId: membership.orgId, userId: user.id, role },
-    include: { user: { select: { name: true, email: true, avatarUrl: true } } },
+  });
+
+  await writeAuditLog({
+    orgId: membership.orgId,
+    userId: session.user.id,
+    userName: session.user.name ?? session.user.email ?? "Unknown",
+    action: "team.member_invited",
+    entityId: newMember.id,
+    meta: { invitedEmail: email, role },
   });
 
   return NextResponse.json({
     member: {
       id: newMember.id,
       userId: newMember.userId,
-      name: newMember.user.name ?? newMember.user.email,
-      email: newMember.user.email,
-      avatarUrl: newMember.user.avatarUrl,
+      name: fullName || user.name || user.email,
+      email: user.email,
+      avatarUrl: user.avatarUrl,
       role: newMember.role,
       joinedAt: newMember.createdAt.toISOString(),
     },

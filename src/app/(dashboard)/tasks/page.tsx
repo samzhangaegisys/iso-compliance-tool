@@ -14,6 +14,22 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ISO_STANDARDS } from "@/lib/iso-data";
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;");
+}
+
+function renderCommentText(text: string): string {
+  return escapeHtml(text).replace(
+    /@([\w .]+)/g,
+    '<span class="text-blue-600 font-medium">@$1</span>'
+  );
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type Priority = "CRITICAL" | "HIGH" | "MEDIUM" | "LOW";
@@ -927,7 +943,7 @@ function TaskDetail({ task, onClose, onUpdate }: {
                       </div>
                       <div className="bg-muted/50 rounded-xl px-3 py-2">
                         <p className="text-xs text-foreground leading-relaxed"
-                          dangerouslySetInnerHTML={{ __html: c.text.replace(/@([\w .]+)/g, '<span class="text-blue-600 font-medium">@$1</span>') }}
+                          dangerouslySetInnerHTML={{ __html: renderCommentText(c.text) }}
                         />
                         {c.attachments.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-1.5">

@@ -18,6 +18,9 @@ import {
   Paperclip,
   MessageSquare,
   AlertTriangle,
+  Pencil,
+  Check,
+  X,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -172,6 +175,8 @@ export default function ProjectDetailPage({
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [editingNotes, setEditingNotes] = useState<{ controlId: string; notes: string } | null>(null);
+  const [savingNotes, setSavingNotes] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -197,6 +202,36 @@ export default function ProjectDetailPage({
       else next.add(number);
       return next;
     });
+  }
+
+  async function saveNotes(controlId: string, notes: string, currentStatus: string) {
+    setSavingNotes(true);
+    try {
+      const res = await fetch(`/api/projects/${params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ controlId, status: currentStatus, notes }),
+      });
+      if (!res.ok) throw new Error();
+      // Update local state
+      setProject((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          clauses: prev.clauses.map((clause) => ({
+            ...clause,
+            controls: clause.controls.map((c) =>
+              c.id === controlId ? { ...c, notes } : c
+            ),
+          })),
+        };
+      });
+      setEditingNotes(null);
+    } catch {
+      // silently fail — user can retry
+    } finally {
+      setSavingNotes(false);
+    }
   }
 
   if (loading) return <Skeleton />;
@@ -418,7 +453,48 @@ export default function ProjectDetailPage({
                                     <span className="text-xs font-bold text-muted-foreground shrink-0">{control.ref}</span>
                                     <span className="text-sm text-foreground leading-snug">{control.title}</span>
                                   </div>
-                                  {control.notes && <p className="text-xs text-red-600 mt-1">{control.notes}</p>}
+
+                                  {/* Notes display / edit */}
+                                  {editingNotes?.controlId === control.id ? (
+                                    <div className="mt-2 space-y-1.5">
+                                      <textarea
+                                        autoFocus
+                                        rows={2}
+                                        value={editingNotes.notes}
+                                        onChange={(e) => setEditingNotes({ ...editingNotes, notes: e.target.value })}
+                                        placeholder="Add notes or observations…"
+                                        className="w-full text-xs border border-border rounded-lg px-2 py-1.5 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-blue-400 resize-none"
+                                      />
+                                      <div className="flex gap-1.5">
+                                        <button
+                                          disabled={savingNotes}
+                                          onClick={() => saveNotes(control.id, editingNotes.notes, control.status)}
+                                          className="flex items-center gap-1 text-[10px] font-medium bg-blue-600 text-white px-2 py-1 rounded-md hover:bg-blue-700 disabled:opacity-50"
+                                        >
+                                          <Check className="size-2.5" />{savingNotes ? "Saving…" : "Save"}
+                                        </button>
+                                        <button
+                                          onClick={() => setEditingNotes(null)}
+                                          className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground px-2 py-1 rounded-md hover:bg-muted"
+                                        >
+                                          <X className="size-2.5" />Cancel
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-1 mt-1 group/notes">
+                                      {control.notes
+                                        ? <p className="text-xs text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded flex-1">{control.notes}</p>
+                                        : null}
+                                      <button
+                                        onClick={() => setEditingNotes({ controlId: control.id, notes: control.notes })}
+                                        className={`flex items-center gap-0.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors ${control.notes ? "" : "opacity-0 group-hover/notes:opacity-100"}`}
+                                      >
+                                        <Pencil className="size-2.5" />{control.notes ? "Edit" : "Add note"}
+                                      </button>
+                                    </div>
+                                  )}
+
                                   <div className="flex items-center gap-3 mt-1.5">
                                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                                       <FileText className="size-3" />{control.evidenceCount} evidence

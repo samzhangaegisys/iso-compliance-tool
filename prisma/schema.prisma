@@ -28,27 +28,41 @@ model OrgMember {
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([orgId, userId])
+  @@index([userId])
 }
 
 model User {
-  id               String           @id @default(cuid())
-  email            String           @unique
-  name             String?
-  avatarUrl        String?
-  emailVerified    DateTime?
-  passwordHash     String?
-  phone            String?
-  marketingConsent Boolean          @default(false)
-  onboardingDone   Boolean          @default(false)
-  mfaSecret        String?
-  mfaEnabled       Boolean          @default(false)
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-  accounts         Account[]
-  comments         ControlComment[]
-  assignedTasks    ControlTask[]
-  orgMembers       OrgMember[]
-  sessions         Session[]
+  id                   String                @id @default(cuid())
+  email                String                @unique
+  name                 String?
+  avatarUrl            String?
+  emailVerified        DateTime?
+  passwordHash         String?
+  phone                String?
+  marketingConsent     Boolean               @default(false)
+  onboardingDone       Boolean               @default(false)
+  mfaSecret            String?
+  mfaEnabled           Boolean               @default(false)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  accounts             Account[]
+  comments             ControlComment[]
+  assignedTasks        ControlTask[]
+  orgMembers           OrgMember[]
+  sessions             Session[]
+  passwordResetTokens  PasswordResetToken[]
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model Account {
@@ -67,6 +81,7 @@ model Account {
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
 }
 
 model Session {
@@ -75,6 +90,8 @@ model Session {
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model VerificationToken {
@@ -107,6 +124,8 @@ model IsoClause {
   children     IsoClause[]  @relation("ClauseHierarchy")
   standard     IsoStandard  @relation(fields: [standardId], references: [id])
   controls     IsoControl[]
+
+  @@index([standardId])
 }
 
 model IsoControl {
@@ -118,6 +137,8 @@ model IsoControl {
   guidance        String?
   clause          IsoClause        @relation(fields: [clauseId], references: [id])
   projectControls ProjectControl[]
+
+  @@index([clauseId])
 }
 
 model ComplianceProject {
@@ -135,6 +156,8 @@ model ComplianceProject {
   organisation Organisation     @relation(fields: [orgId], references: [id], onDelete: Cascade)
   standard     IsoStandard      @relation(fields: [standardId], references: [id])
   controls     ProjectControl[]
+
+  @@index([orgId])
 }
 
 model ProjectControl {
@@ -167,6 +190,8 @@ model Evidence {
   classification   DataClassification @default(INTERNAL)
   updatedAt        DateTime           @updatedAt
   projectControl   ProjectControl     @relation(fields: [projectControlId], references: [id], onDelete: Cascade)
+
+  @@index([projectControlId])
 }
 
 model ControlTask {
@@ -182,6 +207,9 @@ model ControlTask {
   updatedAt        DateTime       @updatedAt
   assignee         User?          @relation(fields: [assigneeId], references: [id])
   projectControl   ProjectControl @relation(fields: [projectControlId], references: [id], onDelete: Cascade)
+
+  @@index([projectControlId])
+  @@index([assigneeId])
 }
 
 model ControlComment {
@@ -192,6 +220,9 @@ model ControlComment {
   createdAt        DateTime       @default(now())
   author           User           @relation(fields: [authorId], references: [id])
   projectControl   ProjectControl @relation(fields: [projectControlId], references: [id], onDelete: Cascade)
+
+  @@index([projectControlId])
+  @@index([authorId])
 }
 
 model Subscription {
@@ -206,6 +237,8 @@ model Subscription {
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
   organisation         Organisation       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
 }
 
 enum OrgRole {
@@ -262,4 +295,17 @@ enum SubscriptionStatus {
   PAST_DUE
   CANCELED
   TRIALING
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  userName  String
+  action    String
+  entityId  String?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([orgId, createdAt(sort: Desc)])
 }

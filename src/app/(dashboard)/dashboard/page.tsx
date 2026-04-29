@@ -239,7 +239,9 @@ export default function DashboardPage() {
   const [openTasks,    setOpenTasks]    = useState<TaskEvent[]>([]);
   const [activity,     setActivity]     = useState<ActivityEvent[]>([]);
   const [taskCount,    setTaskCount]    = useState(0);
+  const [evidenceCount,setEvidenceCount]= useState(0);
   const [loadingData,  setLoadingData]  = useState(true);
+  const [dataError,    setDataError]    = useState(false);
   const org = useOrg();
 
   useEffect(() => {
@@ -258,15 +260,17 @@ export default function DashboardPage() {
       fetch("/api/projects").then((r) => r.json()),
       fetch("/api/tasks").then((r) => r.json()),
       fetch("/api/activity").then((r) => r.json()),
-    ]).then(([projData, taskData, activityData]) => {
+      fetch("/api/evidence").then((r) => r.json()),
+    ]).then(([projData, taskData, activityData, evidenceData]) => {
       setProjects(projData.projects ?? []);
       const allTasks: TaskEvent[] = taskData.tasks ?? [];
       const pending = allTasks.filter((t) => t.status !== "DONE");
       setOpenTasks(pending.slice(0, 7));
       setTaskCount(pending.length);
       setActivity((activityData.activity ?? []).slice(0, 5));
+      setEvidenceCount((evidenceData.evidence ?? []).length);
       setLoadingData(false);
-    }).catch(() => setLoadingData(false));
+    }).catch(() => { setLoadingData(false); setDataError(true); });
   }, []);
 
   function dismissWelcome() {
@@ -387,8 +391,8 @@ export default function DashboardPage() {
           <Card className="hover:shadow-md hover:border-blue-200 transition-all cursor-pointer h-full">
             <CardContent className="pt-4">
               <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Evidence Files</p>
-              <p className="text-3xl font-bold text-foreground mt-1">0</p>
-              <p className="text-xs text-muted-foreground mt-1">Upload evidence to track</p>
+              <p className="text-3xl font-bold text-foreground mt-1">{evidenceCount}</p>
+              <p className="text-xs text-muted-foreground mt-1">{evidenceCount === 0 ? "Upload evidence to track" : "evidence files"}</p>
             </CardContent>
           </Card>
         </Link>
@@ -618,9 +622,9 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
               { label: "Start New Project",  href: "/projects",  icon: Plus,        color: "text-blue-600"   },
-              { label: "Upload Evidence",    href: "/evidence",  icon: FileCheck2,  color: "text-green-600"  },
-              { label: "Run Gap Analysis",   href: "/reports",   icon: TrendingUp,  color: "text-amber-600"  },
               { label: "Invite Team Member", href: "/team",      icon: User,        color: "text-purple-600" },
+              { label: "Run Gap Analysis",   href: "/reports",   icon: TrendingUp,  color: "text-amber-600"  },
+              { label: "Upload Evidence",    href: "/evidence",  icon: FileCheck2,  color: "text-green-600"  },
             ].map((action) => (
               <Link key={action.label} href={action.href}
                 className="flex flex-col items-center gap-2 p-4 rounded-xl border border-border hover:bg-muted/40 hover:border-blue-200 transition-all text-center group">

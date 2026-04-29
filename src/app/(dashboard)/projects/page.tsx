@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { usePlan } from "@/lib/plan-context";
+import { useOrg } from "@/lib/org-context";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -329,7 +330,9 @@ function NewProjectModal({ onClose, onAdd }: {
   onClose: () => void;
   onAdd: (p: unknown) => void;
 }) {
-  const { plan: MOCK_PLAN } = usePlan();
+  const org = useOrg();
+  const { plan: adminPlan } = usePlan();
+  const MOCK_PLAN = org?.plan ?? adminPlan;
   const [step, setStep]     = useState<1 | 2>(1);
   const [chosen, setChosen] = useState<string | null>(null);
   const [form, setForm]     = useState({
@@ -900,7 +903,9 @@ function mapApiProject(p: {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function ProjectsPage() {
-  const { plan: MOCK_PLAN } = usePlan();
+  const org = useOrg();
+  const { plan: adminPlan } = usePlan();
+  const MOCK_PLAN = org?.plan ?? adminPlan;
   const [projects, setProjects]           = useState<Project[]>([]);
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [showModal, setShowModal]         = useState(false);

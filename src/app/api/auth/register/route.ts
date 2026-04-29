@@ -1,9 +1,21 @@
 import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
+import { z } from "zod";
 import { hashPassword } from "@/lib/password";
 import { verifyTurnstile } from "@/lib/turnstile";
 import { isPasswordStrong } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
+
+const RegisterSchema = z.object({
+  name:              z.string().min(1).max(100),
+  email:             z.string().email().max(254),
+  password:          z.string().min(8).max(128),
+  phone:             z.string().max(30).optional(),
+  consentTerms:      z.boolean(),
+  consentMarketing:  z.boolean().optional().default(false),
+  captchaToken:      z.string().optional(),
+});
 
 function generateOtp(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
@@ -14,6 +26,11 @@ function generateRegToken(): string {
 }
 
 export async function POST(req: Request) {
+  const ip = getClientIp(req);
+  if (!rateLimit(`register:${ip}`, 5, 15 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many registration attempts. Please try again later." }, { status: 429 });
+  }
+
   if (!prisma) {
     const hint = process.env.NODE_ENV === "development"
       ? "Database not connected. Check DATABASE_URL in .env.local."
@@ -21,13 +38,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: hint }, { status: 503 });
   }
 
-  const body = await req.json();
-  const { name, email, password, phone, consentTerms, consentMarketing, captchaToken } = body;
-
-  // Validate required fields
-  if (!name || !email || !password) {
-    return NextResponse.json({ error: "Name, email, and password are required." }, { status: 400 });
+  const rawBody = await req.json();
+  const parsed = RegisterSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input." }, { status: 400 });
   }
+  const { name, email, password, phone, consentTerms, consentMarketing, captchaToken } = parsed.data;
+
   if (!consentTerms) {
     return NextResponse.json({ error: "You must agree to the Terms of Service and Privacy Policy." }, { status: 400 });
   }
@@ -89,8 +106,9 @@ export async function POST(req: Request) {
   });
 
   // In production: send OTP via email (e.g. Resend, SendGrid, AWS SES)
-  // For now, log to console for development
-  console.log(`\n[ISOComply] Email verification OTP for ${email}: ${otp}\n`);
+  if (process.env.NODE_ENV === "development") {
+    console.log(`\n[ISOComply] Email verification OTP for ${email}: ${otp}\n`);
+  }
 
   return NextResponse.json({ userId: user.id, regToken, otpSent: true });
 }

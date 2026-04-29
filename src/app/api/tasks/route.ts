@@ -1,6 +1,17 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { writeAuditLog } from "@/lib/audit";
+
+const CreateTaskSchema = z.object({
+  projectControlId: z.string().cuid(),
+  title:            z.string().min(1).max(255),
+  description:      z.string().max(5000).optional(),
+  assigneeId:       z.string().cuid().optional(),
+  dueDate:          z.string().datetime().optional(),
+  priority:         z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]).default("MEDIUM"),
+});
 
 export async function GET(req: Request) {
   const session = await auth();
@@ -15,7 +26,6 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const projectId = searchParams.get("projectId");
 
-  // Tasks are scoped through: org → projects → project controls → tasks
   const tasks = await prisma.controlTask.findMany({
     where: {
       projectControl: {
@@ -63,14 +73,27 @@ export async function POST(req: Request) {
   });
   if (!membership) return NextResponse.json({ error: "No org" }, { status: 400 });
 
-  const { projectControlId, title, description, assigneeId, dueDate, priority } = await req.json();
-  if (!projectControlId || !title) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+  const parsed = CreateTaskSchema.safeParse(await req.json());
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input." }, { status: 400 });
+  }
+  const { projectControlId, title, description, assigneeId, dueDate, priority } = parsed.data;
 
   // Verify the projectControl belongs to this org
   const pc = await prisma.projectControl.findFirst({
     where: { id: projectControlId, project: { orgId: membership.orgId } },
   });
   if (!pc) return NextResponse.json({ error: "Control not found" }, { status: 404 });
+
+  // Validate assignee is a member of this org
+  if (assigneeId) {
+    const assigneeMember = await prisma.orgMember.findFirst({
+      where: { userId: assigneeId, orgId: membership.orgId },
+    });
+    if (!assigneeMember) {
+      return NextResponse.json({ error: "Assignee is not a member of this organisation" }, { status: 400 });
+    }
+  }
 
   const task = await prisma.controlTask.create({
     data: {
@@ -79,7 +102,7 @@ export async function POST(req: Request) {
       description: description || null,
       assigneeId: assigneeId || null,
       dueDate: dueDate ? new Date(dueDate) : null,
-      priority: priority || "MEDIUM",
+      priority,
       status: "TODO",
     },
     include: {
@@ -91,6 +114,15 @@ export async function POST(req: Request) {
         },
       },
     },
+  });
+
+  await writeAuditLog({
+    orgId: membership.orgId,
+    userId: session.user.id,
+    userName: session.user.name ?? session.user.email ?? "Unknown",
+    action: "task.created",
+    entityId: task.id,
+    meta: { title, priority },
   });
 
   return NextResponse.json({

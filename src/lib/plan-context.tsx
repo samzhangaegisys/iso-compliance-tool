@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 
 export type Plan = "starter" | "professional" | "enterprise";
 
@@ -14,22 +14,12 @@ const PlanContext = createContext<PlanContextValue>({
   setPlan: () => {},
 });
 
+/**
+ * PlanProvider — admin-only plan switcher for testing UI feature gates.
+ * Regular users should read their plan from useOrg().plan (server-authoritative).
+ */
 export function PlanProvider({ children }: { children: ReactNode }) {
-  const [plan, setPlanState] = useState<Plan>("professional");
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("mock_plan") as Plan | null;
-      if (saved && ["starter", "professional", "enterprise"].includes(saved)) {
-        setPlanState(saved);
-      }
-    } catch {}
-  }, []);
-
-  function setPlan(p: Plan) {
-    setPlanState(p);
-    try { localStorage.setItem("mock_plan", p); } catch {}
-  }
+  const [plan, setPlan] = useState<Plan>("professional");
 
   return (
     <PlanContext.Provider value={{ plan, setPlan }}>

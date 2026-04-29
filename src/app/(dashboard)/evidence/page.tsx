@@ -79,36 +79,7 @@ const SIDEBAR_TREE: Record<string, string[]> = {
   "ISO 42001": ["4", "6", "8"],
 };
 
-const ONEDRIVE_FILES = [
-  { name: "ISO-27001-Policy-Package.pdf", size: "1.2 MB", modified: "Apr 5, 2026" },
-  { name: "Access-Control-Review-Q1.xlsx", size: "245 KB", modified: "Apr 3, 2026" },
-  { name: "Training-Completion-Records.pdf", size: "980 KB", modified: "Mar 28, 2026" },
-  { name: "Risk-Treatment-Plan-2026.docx", size: "340 KB", modified: "Mar 20, 2026" },
-  { name: "Supplier-Assessment-Forms.xlsx", size: "180 KB", modified: "Mar 15, 2026" },
-  { name: "Incident-Response-Procedure.pdf", size: "560 KB", modified: "Feb 28, 2026" },
-];
 
-const GDRIVE_FILES = [
-  { name: "Quality-Manual-v6-DRAFT.docx", size: "620 KB", modified: "Apr 6, 2026" },
-  { name: "Management-Review-Minutes-Q1.pdf", size: "320 KB", modified: "Apr 2, 2026" },
-  { name: "Internal-Audit-Checklist-9001.xlsx", size: "145 KB", modified: "Mar 25, 2026" },
-  { name: "CAR-Register-2026.xlsx", size: "210 KB", modified: "Mar 18, 2026" },
-  { name: "Environmental-Policy-Signed.pdf", size: "180 KB", modified: "Mar 10, 2026" },
-  { name: "OH&S-Hazard-Register-2026.xlsx", size: "290 KB", modified: "Feb 20, 2026" },
-];
-
-const seedEvidence: EvidenceItem[] = [
-  { id: "e1", name: "Information Security Policy v2.1.pdf", type: "PDF", size: "245 KB", standard: "ISO 27001", standardCode: "ISO27001", clause: "A.5", control: "A.5.1", controlTitle: "Policies for information security", taskId: "1", taskTitle: "Complete risk assessment documentation", uploadedBy: "Sarah K.", uploadedDate: "Apr 3, 2026", classification: "INTERNAL", fileUrl: null, description: "Board-approved ISMS policy including scope, objectives, and management commitment statement.", tags: ["policy", "ISMS", "board-approved"], source: "computer" },
-  { id: "e2", name: "Access Control Matrix v3-DRAFT.xlsx", type: "XLSX", size: "310 KB", standard: "ISO 27001", standardCode: "ISO27001", clause: "A.5", control: "A.5.15", controlTitle: "Access control", taskId: "6", taskTitle: "Update access control matrix", uploadedBy: "Sarah K.", uploadedDate: "Apr 2, 2026", classification: "CONFIDENTIAL", fileUrl: null, description: "Updated user access matrix with role definitions and approvals pending.", tags: ["access-control", "draft"], source: "computer" },
-  { id: "e3", name: "Security Awareness Training Records Q1 2026.pdf", type: "PDF", size: "1.2 MB", standard: "ISO 27001", standardCode: "ISO27001", clause: "A.6", control: "A.6.3", controlTitle: "Information security awareness, education and training", uploadedBy: "Tom R.", uploadedDate: "Apr 1, 2026", classification: "INTERNAL", fileUrl: null, description: "Completion records for Q1 2026 security awareness training — 47 of 48 staff completed.", tags: ["training", "awareness", "records"], source: "onedrive" },
-  { id: "e4", name: "Endpoint MDM Enrollment Report.pdf", type: "PDF", size: "890 KB", standard: "ISO 27001", standardCode: "ISO27001", clause: "A.8", control: "A.8.1", controlTitle: "User endpoint devices", uploadedBy: "James O.", uploadedDate: "Mar 29, 2026", classification: "INTERNAL", fileUrl: null, description: "Microsoft Intune enrollment report showing 98% endpoint compliance.", tags: ["MDM", "endpoints", "Intune"], source: "computer" },
-  { id: "e5", name: "Vulnerability Scan Report March 2026.pdf", type: "PDF", size: "2.1 MB", standard: "ISO 27001", standardCode: "ISO27001", clause: "A.8", control: "A.8.8", controlTitle: "Management of technical vulnerabilities", uploadedBy: "James O.", uploadedDate: "Mar 28, 2026", classification: "RESTRICTED", fileUrl: null, description: "Qualys scan report — 2 HIGH findings require patch evidence before approval.", tags: ["vulnerability", "scan", "Qualys"], source: "computer" },
-  { id: "e6", name: "Quality Manual v5.0.docx", type: "DOCX", size: "560 KB", standard: "ISO 9001", standardCode: "ISO9001", clause: "5", control: "5.2", controlTitle: "Quality policy", uploadedBy: "Sarah K.", uploadedDate: "Mar 28, 2026", classification: "PUBLIC", fileUrl: null, description: "Current quality manual including quality policy signed by CEO.", tags: ["quality", "manual", "policy"], source: "googledrive" },
-  { id: "e7", name: "Risk Register Q1 2026.xlsx", type: "XLSX", size: "198 KB", standard: "ISO 9001", standardCode: "ISO9001", clause: "6", control: "6.1", controlTitle: "Actions to address risks and opportunities", uploadedBy: "Tom R.", uploadedDate: "Mar 22, 2026", classification: "CONFIDENTIAL", fileUrl: null, description: "Q1 2026 risk register with updated likelihood/impact scores and treatment actions.", tags: ["risk", "register", "Q1"], source: "computer" },
-  { id: "e8", name: "Supplier Evaluation Forms 2026.xlsx", type: "XLSX", size: "145 KB", standard: "ISO 9001", standardCode: "ISO9001", clause: "8", control: "8.4", controlTitle: "Control of externally provided processes", uploadedBy: "James O.", uploadedDate: "Mar 20, 2026", classification: "INTERNAL", fileUrl: null, description: "Annual supplier evaluation forms for all Tier 1 suppliers.", tags: ["supplier", "evaluation"], source: "onedrive" },
-  { id: "e9", name: "Environmental Aspects Register v4.xlsx", type: "XLSX", size: "210 KB", standard: "ISO 14001", standardCode: "ISO14001", clause: "6", control: "6.1.2", controlTitle: "Environmental aspects", taskId: "2", taskTitle: "Update environmental aspects register", uploadedBy: "Tom R.", uploadedDate: "Mar 15, 2026", classification: "INTERNAL", fileUrl: null, description: "Environmental aspects and impacts register — pending Q1 operational updates.", tags: ["environmental", "aspects", "register"], source: "computer" },
-  { id: "e10", name: "Emergency Response Plan 2026.pdf", type: "PDF", size: "890 KB", standard: "ISO 14001", standardCode: "ISO14001", clause: "8", control: "8.2", controlTitle: "Emergency preparedness and response", uploadedBy: "Tom R.", uploadedDate: "Feb 28, 2026", classification: "PUBLIC", fileUrl: null, description: "Updated emergency response plan including new warehouse procedures.", tags: ["emergency", "response", "plan"], source: "computer" },
-];
 
 // ── Helper functions ──────────────────────────────────────────────────────────
 
@@ -730,50 +701,33 @@ function PreviewPanel({
 // ── Upload Modal ──────────────────────────────────────────────────────────────
 
 type UploadTab = "computer" | "onedrive" | "googledrive";
-type CloudState = "idle" | "connecting" | "connected";
 type UploadStep = 1 | 2;
-
-interface CloudFile {
-  name: string;
-  size: string;
-  modified: string;
-}
 
 interface SelectedFile {
   name: string;
   size: string;
 }
 
-function UploadModal({ onClose }: { onClose: () => void }) {
+type ProjectOption = { id: string; name: string; standardCode: string };
+
+function UploadModal({ onClose, onUploaded, projects }: { onClose: () => void; onUploaded: () => void; projects: ProjectOption[] }) {
   const [step, setStep] = useState<UploadStep>(1);
   const [activeTab, setActiveTab] = useState<UploadTab>("computer");
-  const [oneDriveState, setOneDriveState] = useState<CloudState>("idle");
-  const [gDriveState, setGDriveState] = useState<CloudState>("idle");
   const [selectedCloudFiles, setSelectedCloudFiles] = useState<Set<string>>(new Set());
   const [localFiles, setLocalFiles] = useState<SelectedFile[]>([]);
   const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Step 2 fields
-  const [selectedStandard, setSelectedStandard] = useState("");
+  const [selectedProjectId, setSelectedProjectId] = useState(projects[0]?.id ?? "");
   const [selectedControl, setSelectedControl] = useState("");
-  const [linkedTask, setLinkedTask] = useState("");
   const [description, setDescription] = useState("");
-  const [tagsInput, setTagsInput] = useState("");
-  const [uploadStatus, setUploadStatus] = useState<"pending_review" | "approved">("pending_review");
+  const [classification, setClassification] = useState<"PUBLIC" | "INTERNAL" | "CONFIDENTIAL" | "RESTRICTED">("INTERNAL");
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
 
-  const standardOptions = Object.keys(STD_CODE_MAP);
-  const stdData = ISO_STANDARDS.find((s) => s.code === STD_CODE_MAP[selectedStandard]);
-
-  function handleConnectOneDrive() {
-    setOneDriveState("connecting");
-    setTimeout(() => setOneDriveState("connected"), 1500);
-  }
-
-  function handleConnectGDrive() {
-    setGDriveState("connecting");
-    setTimeout(() => setGDriveState("connected"), 1500);
-  }
+  const selectedProject = projects.find((p) => p.id === selectedProjectId);
+  const stdData = ISO_STANDARDS.find((s) => s.code === selectedProject?.standardCode);
 
   function toggleCloudFile(name: string) {
     setSelectedCloudFiles((prev) => {
@@ -809,84 +763,6 @@ function UploadModal({ onClose }: { onClose: () => void }) {
   const canProceed =
     (activeTab === "computer" && localFiles.length > 0) ||
     ((activeTab === "onedrive" || activeTab === "googledrive") && selectedCloudFiles.size > 0);
-
-  function CloudFileBrowser({ files, state }: { files: CloudFile[]; state: CloudState }) {
-    if (state === "idle") return null;
-    if (state === "connecting") {
-      return (
-        <div className="mt-4 flex flex-col items-center justify-center py-8 gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-5 animate-spin text-blue-500" />
-          <span>Authenticating with Microsoft...</span>
-        </div>
-      );
-    }
-    return (
-      <div className="mt-3">
-        <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
-          <FolderOpen className="size-3" />
-          <span>OneDrive / Compliance Documents</span>
-        </div>
-        <div className="border border-border rounded-lg divide-y divide-border overflow-hidden">
-          {files.map((f) => (
-            <label
-              key={f.name}
-              className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/50 transition-colors"
-            >
-              <input
-                type="checkbox"
-                checked={selectedCloudFiles.has(f.name)}
-                onChange={() => toggleCloudFile(f.name)}
-                className="rounded"
-              />
-              <FileText className="size-3.5 text-muted-foreground shrink-0" />
-              <span className="flex-1 text-xs text-foreground truncate">{f.name}</span>
-              <span className="text-[10px] text-muted-foreground shrink-0">{f.size}</span>
-              <span className="text-[10px] text-muted-foreground shrink-0">{f.modified}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  function GDriveFileBrowser({ files, state }: { files: CloudFile[]; state: CloudState }) {
-    if (state === "idle") return null;
-    if (state === "connecting") {
-      return (
-        <div className="mt-4 flex flex-col items-center justify-center py-8 gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-5 animate-spin text-red-500" />
-          <span>Authenticating with Google...</span>
-        </div>
-      );
-    }
-    return (
-      <div className="mt-3">
-        <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
-          <FolderOpen className="size-3" />
-          <span>My Drive / Compliance Documents</span>
-        </div>
-        <div className="border border-border rounded-lg divide-y divide-border overflow-hidden">
-          {files.map((f) => (
-            <label
-              key={f.name}
-              className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/50 transition-colors"
-            >
-              <input
-                type="checkbox"
-                checked={selectedCloudFiles.has(f.name)}
-                onChange={() => toggleCloudFile(f.name)}
-                className="rounded"
-              />
-              <FileText className="size-3.5 text-muted-foreground shrink-0" />
-              <span className="flex-1 text-xs text-foreground truncate">{f.name}</span>
-              <span className="text-[10px] text-muted-foreground shrink-0">{f.size}</span>
-              <span className="text-[10px] text-muted-foreground shrink-0">{f.modified}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
@@ -1005,61 +881,39 @@ function UploadModal({ onClose }: { onClose: () => void }) {
 
               {/* OneDrive tab */}
               {activeTab === "onedrive" && (
-                <div>
-                  {oneDriveState === "idle" && (
-                    <div className="flex flex-col items-center justify-center py-8 gap-3">
-                      <div className="size-12 rounded-xl bg-blue-50 flex items-center justify-center">
-                        <Cloud className="size-6 text-blue-600" />
-                      </div>
-                      <div className="text-center">
-                        <p className="text-sm font-medium text-foreground">Connect to OneDrive</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Browse and import files from your Microsoft OneDrive
-                        </p>
-                      </div>
-                      <button
-                        onClick={handleConnectOneDrive}
-                        className="flex items-center gap-2 bg-[#0078D4] hover:bg-[#106EBE] text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-                      >
-                        <Cloud className="size-4" />
-                        Sign in with Microsoft
-                      </button>
+                <div className="flex flex-col items-center justify-center py-10 gap-3">
+                  <div className="size-12 rounded-xl bg-blue-50 flex items-center justify-center">
+                    <Cloud className="size-6 text-blue-400" />
+                  </div>
+                  <div className="text-center">
+                    <div className="flex items-center justify-center gap-2 mb-1">
+                      <p className="text-sm font-medium text-foreground">OneDrive Integration</p>
+                      <span className="text-[10px] font-semibold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Coming Soon</span>
                     </div>
-                  )}
-                  <CloudFileBrowser files={ONEDRIVE_FILES} state={oneDriveState} />
+                    <p className="text-xs text-muted-foreground">
+                      OneDrive import will be available in an upcoming release.
+                      <br />Upload files directly from your computer in the meantime.
+                    </p>
+                  </div>
                 </div>
               )}
 
               {/* Google Drive tab */}
               {activeTab === "googledrive" && (
-                <div>
-                  {gDriveState === "idle" && (
-                    <div className="flex flex-col items-center justify-center py-8 gap-3">
-                      <div className="size-12 rounded-xl bg-red-50 flex items-center justify-center">
-                        <Cloud className="size-6 text-red-500" />
-                      </div>
-                      <div className="text-center">
-                        <p className="text-sm font-medium text-foreground">Connect to Google Drive</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Browse and import files from your Google Drive
-                        </p>
-                      </div>
-                      <button
-                        onClick={handleConnectGDrive}
-                        className="flex items-center gap-2 bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg border border-gray-300 transition-colors shadow-sm"
-                      >
-                        {/* Google G icon inline SVG */}
-                        <svg viewBox="0 0 24 24" className="size-4">
-                          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                        </svg>
-                        Sign in with Google
-                      </button>
+                <div className="flex flex-col items-center justify-center py-10 gap-3">
+                  <div className="size-12 rounded-xl bg-red-50 flex items-center justify-center">
+                    <Cloud className="size-6 text-red-400" />
+                  </div>
+                  <div className="text-center">
+                    <div className="flex items-center justify-center gap-2 mb-1">
+                      <p className="text-sm font-medium text-foreground">Google Drive Integration</p>
+                      <span className="text-[10px] font-semibold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Coming Soon</span>
                     </div>
-                  )}
-                  <GDriveFileBrowser files={GDRIVE_FILES} state={gDriveState} />
+                    <p className="text-xs text-muted-foreground">
+                      Google Drive import will be available in an upcoming release.
+                      <br />Upload files directly from your computer in the meantime.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
@@ -1067,21 +921,24 @@ function UploadModal({ onClose }: { onClose: () => void }) {
 
           {step === 2 && (
             <div className="space-y-4">
-              {/* Standard */}
+              {/* Project */}
               <div>
                 <label className="text-xs font-medium text-foreground block mb-1">
-                  Standard <span className="text-red-500">*</span>
+                  Project <span className="text-red-500">*</span>
                 </label>
-                <select
-                  value={selectedStandard}
-                  onChange={(e) => { setSelectedStandard(e.target.value); setSelectedControl(""); }}
-                  className="w-full text-sm border border-border rounded-lg px-2.5 py-1.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select standard...</option>
-                  {standardOptions.map((s) => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
+                {projects.length === 0 ? (
+                  <p className="text-xs text-amber-600">No active projects. Create a project first.</p>
+                ) : (
+                  <select
+                    value={selectedProjectId}
+                    onChange={(e) => { setSelectedProjectId(e.target.value); setSelectedControl(""); }}
+                    className="w-full text-sm border border-border rounded-lg px-2.5 py-1.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {projects.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name} ({p.standardCode})</option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               {/* Control ref */}
@@ -1092,7 +949,7 @@ function UploadModal({ onClose }: { onClose: () => void }) {
                 <select
                   value={selectedControl}
                   onChange={(e) => setSelectedControl(e.target.value)}
-                  disabled={!selectedStandard}
+                  disabled={!selectedProjectId || !stdData}
                   className="w-full text-sm border border-border rounded-lg px-2.5 py-1.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                 >
                   <option value="">Select control...</option>
@@ -1106,20 +963,6 @@ function UploadModal({ onClose }: { onClose: () => void }) {
                     </optgroup>
                   ))}
                 </select>
-              </div>
-
-              {/* Linked task */}
-              <div>
-                <label className="text-xs font-medium text-foreground block mb-1">
-                  Linked Task <span className="text-muted-foreground font-normal">(optional)</span>
-                </label>
-                <input
-                  type="text"
-                  value={linkedTask}
-                  onChange={(e) => setLinkedTask(e.target.value)}
-                  placeholder="e.g. Complete risk assessment documentation"
-                  className="w-full text-sm border border-border rounded-lg px-2.5 py-1.5 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
               </div>
 
               {/* Description */}
@@ -1136,61 +979,32 @@ function UploadModal({ onClose }: { onClose: () => void }) {
                 />
               </div>
 
-              {/* Tags */}
-              <div>
-                <label className="text-xs font-medium text-foreground block mb-1">
-                  Tags <span className="text-muted-foreground font-normal">(comma-separated)</span>
-                </label>
-                <input
-                  type="text"
-                  value={tagsInput}
-                  onChange={(e) => setTagsInput(e.target.value)}
-                  placeholder="e.g. policy, ISMS, approved"
-                  className="w-full text-sm border border-border rounded-lg px-2.5 py-1.5 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                {tagsInput && (
-                  <div className="flex flex-wrap gap-1 mt-1.5">
-                    {tagsInput.split(",").map((t) => t.trim()).filter(Boolean).map((tag) => (
-                      <span
-                        key={tag}
-                        className="inline-flex items-center gap-0.5 text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded"
-                      >
-                        <Tag className="size-2" />
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Status */}
+              {/* Classification */}
               <div>
                 <label className="text-xs font-medium text-foreground block mb-1.5">
-                  Status
+                  Classification
                 </label>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="status"
-                      value="pending_review"
-                      checked={uploadStatus === "pending_review"}
-                      onChange={() => setUploadStatus("pending_review")}
-                    />
-                    <span className="text-sm text-foreground">Pending Review</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="status"
-                      value="approved"
-                      checked={uploadStatus === "approved"}
-                      onChange={() => setUploadStatus("approved")}
-                    />
-                    <span className="text-sm text-foreground">Approved</span>
-                  </label>
+                <div className="flex flex-wrap gap-3">
+                  {(["PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED"] as const).map((c) => (
+                    <label key={c} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="classification"
+                        value={c}
+                        checked={classification === c}
+                        onChange={() => setClassification(c)}
+                      />
+                      <span className="text-sm text-foreground capitalize">{c.toLowerCase()}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
+
+              {uploadError && (
+                <p className="text-xs text-red-600 flex items-center gap-1">
+                  <AlertTriangle className="size-3.5 shrink-0" />{uploadError}
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -1219,11 +1033,36 @@ function UploadModal({ onClose }: { onClose: () => void }) {
             {step === 2 && (
               <Button
                 size="sm"
-                disabled={!selectedStandard || !selectedControl}
-                onClick={onClose}
+                disabled={!selectedProjectId || !selectedControl || uploading || projects.length === 0}
+                onClick={async () => {
+                  setUploading(true);
+                  setUploadError("");
+                  const fileName = localFiles[0]?.name ?? [...selectedCloudFiles][0] ?? "Evidence document";
+                  try {
+                    const res = await fetch("/api/evidence", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        projectId: selectedProjectId,
+                        controlRef: selectedControl,
+                        name: fileName,
+                        description: description || undefined,
+                        fileType: fileName.split(".").pop()?.toUpperCase(),
+                        classification,
+                      }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) { setUploadError(data.error ?? "Upload failed"); setUploading(false); return; }
+                    onUploaded();
+                    onClose();
+                  } catch {
+                    setUploadError("Something went wrong. Please try again.");
+                    setUploading(false);
+                  }
+                }}
               >
-                <Upload className="size-3.5" />
-                Upload
+                {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
+                {uploading ? "Uploading…" : "Upload"}
               </Button>
             )}
           </div>
@@ -1269,8 +1108,9 @@ export default function EvidencePage() {
 
   const [evidence, setEvidence] = useState<EvidenceItem[]>([]);
   const [loadingEvidence, setLoadingEvidence] = useState(true);
+  const [uploadProjects, setUploadProjects] = useState<ProjectOption[]>([]);
 
-  useEffect(() => {
+  function loadEvidence() {
     fetch("/api/evidence")
       .then((r) => r.json())
       .then((data) => {
@@ -1301,6 +1141,24 @@ export default function EvidencePage() {
         setLoadingEvidence(false);
       })
       .catch(() => setLoadingEvidence(false));
+  }
+
+  useEffect(() => {
+    loadEvidence();
+    fetch("/api/projects")
+      .then((r) => r.json())
+      .then((data) => {
+        const active = (data.projects ?? [])
+          .filter((p: { status: string }) => p.status === "ACTIVE" || p.status === "IN_PROGRESS")
+          .map((p: { id: string; name: string; standardCode: string }) => ({
+            id: p.id,
+            name: p.name,
+            standardCode: p.standardCode,
+          }));
+        setUploadProjects(active);
+      })
+      .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [search, setSearch] = useState("");
@@ -1500,7 +1358,13 @@ export default function EvidencePage() {
       )}
 
       {/* Upload modal */}
-      {showUpload && <UploadModal onClose={() => setShowUpload(false)} />}
+      {showUpload && (
+        <UploadModal
+          onClose={() => setShowUpload(false)}
+          onUploaded={loadEvidence}
+          projects={uploadProjects}
+        />
+      )}
     </div>
   );
 }

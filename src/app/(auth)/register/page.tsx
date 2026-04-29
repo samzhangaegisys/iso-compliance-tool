@@ -114,18 +114,6 @@ function LeftPanel({ step }: { step: number }) {
           ))}
         </div>
       </div>
-      <div className="relative border border-white/10 rounded-2xl p-5 bg-white/[0.03]">
-        <p className="text-sm text-slate-300 leading-relaxed mb-4">&ldquo;ISOComply cut our ISO 27001 preparation time by 60%. We were audit-ready in under 3 months.&rdquo;</p>
-        <div className="flex items-center gap-3">
-          <div className="size-8 rounded-full bg-gradient-to-br from-emerald-500 to-blue-500 flex items-center justify-center">
-            <span className="text-xs font-bold text-white">SR</span>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-white">Sarah Roberts</p>
-            <p className="text-[10px] text-slate-500">Head of Compliance, Nexlayer</p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

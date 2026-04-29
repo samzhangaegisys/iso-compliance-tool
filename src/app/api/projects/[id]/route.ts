@@ -1,6 +1,14 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { writeAuditLog } from "@/lib/audit";
+
+const PatchControlSchema = z.object({
+  controlId: z.string().cuid(),
+  status:    z.enum(["NOT_STARTED", "IN_PROGRESS", "IMPLEMENTED", "NOT_APPLICABLE", "NON_COMPLIANT"]),
+  notes:     z.string().max(2000).optional(),
+});
 
 export async function GET(
   _req: Request,
@@ -61,12 +69,12 @@ export async function GET(
     }),
   }));
 
-  const total       = project.controls.length;
-  const implemented = project.controls.filter((c) => c.status === "IMPLEMENTED").length;
-  const inProgress  = project.controls.filter((c) => c.status === "IN_PROGRESS").length;
-  const notStarted  = project.controls.filter((c) => c.status === "NOT_STARTED").length;
-  const nonCompliant= project.controls.filter((c) => c.status === "NON_COMPLIANT").length;
-  const score       = total > 0 ? Math.round((implemented / total) * 100) : 0;
+  const total        = project.controls.length;
+  const implemented  = project.controls.filter((c) => c.status === "IMPLEMENTED").length;
+  const inProgress   = project.controls.filter((c) => c.status === "IN_PROGRESS").length;
+  const notStarted   = project.controls.filter((c) => c.status === "NOT_STARTED").length;
+  const nonCompliant = project.controls.filter((c) => c.status === "NON_COMPLIANT").length;
+  const score        = total > 0 ? Math.round((implemented / total) * 100) : 0;
 
   return NextResponse.json({
     project: {
@@ -104,12 +112,31 @@ export async function PATCH(
   });
   if (!membership) return NextResponse.json({ error: "No org" }, { status: 403 });
 
-  const { controlId, status, notes } = await req.json();
-  if (!controlId || !status) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+  // Verify the project belongs to this org
+  const project = await prisma.complianceProject.findFirst({
+    where: { id, orgId: membership.orgId },
+    select: { id: true, name: true },
+  });
+  if (!project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
+
+  const parsed = PatchControlSchema.safeParse(await req.json());
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input." }, { status: 400 });
+  }
+  const { controlId, status, notes } = parsed.data;
 
   const pc = await prisma.projectControl.update({
     where: { projectId_controlId: { projectId: id, controlId } },
     data: { status, ...(notes !== undefined ? { notes } : {}) },
+  });
+
+  await writeAuditLog({
+    orgId: membership.orgId,
+    userId: session.user.id,
+    userName: session.user.name ?? session.user.email ?? "Unknown",
+    action: "control.status_updated",
+    entityId: pc.id,
+    meta: { projectId: id, controlId, status },
   });
 
   return NextResponse.json({ projectControl: { id: pc.id, status: pc.status } });
