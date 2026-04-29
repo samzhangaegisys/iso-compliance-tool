@@ -3,16 +3,18 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-const PRICE_IDS: Record<string, string | undefined> = {
-  professional: process.env.STRIPE_PRICE_PROFESSIONAL,
-  enterprise:   process.env.STRIPE_PRICE_ENTERPRISE,
+const PRICE_IDS: Record<string, Record<string, string | undefined>> = {
+  starter:      { monthly: process.env.STRIPE_PRICE_STARTER_MONTHLY,       annual: process.env.STRIPE_PRICE_STARTER_ANNUAL },
+  professional: { monthly: process.env.STRIPE_PRICE_PROFESSIONAL_MONTHLY,  annual: process.env.STRIPE_PRICE_PROFESSIONAL_ANNUAL },
+  enterprise:   { monthly: process.env.STRIPE_PRICE_ENTERPRISE_MONTHLY,    annual: process.env.STRIPE_PRICE_ENTERPRISE_ANNUAL },
 };
 
 const CheckoutSchema = z.object({
-  plan:       z.enum(["professional", "enterprise"]),
-  // Only used by the unauthenticated registration flow; ignored for session-authed requests
+  plan:       z.enum(["starter", "professional", "enterprise"]),
+  billing:    z.enum(["monthly", "annual"]).default("monthly"),
+  seats:      z.number().int().min(5).max(10000).default(5),
   email:      z.string().email().max(254).optional(),
-  userId:     z.string().cuid().optional(),
+  userId:     z.string().optional(),
   regToken:   z.string().min(1).optional(),
   successUrl: z.string().url().optional(),
   cancelUrl:  z.string().url().optional(),
@@ -31,7 +33,7 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input." }, { status: 400 });
   }
-  const { plan, email: bodyEmail, userId: bodyUserId, regToken, successUrl, cancelUrl } = parsed.data;
+  const { plan, billing, seats, email: bodyEmail, userId: bodyUserId, regToken, successUrl, cancelUrl } = parsed.data;
 
   if (!isAllowedUrl(successUrl) || !isAllowedUrl(cancelUrl)) {
     return NextResponse.json({ error: "Invalid redirect URL." }, { status: 400 });
@@ -41,11 +43,9 @@ export async function POST(req: Request) {
   let resolvedUserId: string;
 
   if (session?.user?.id) {
-    // Authenticated (settings page upgrade) — trust session, ignore body identity fields
     resolvedEmail  = session.user.email!;
     resolvedUserId = session.user.id;
   } else {
-    // Unauthenticated registration flow — regToken is the pre-auth proof
     if (!regToken || !bodyEmail || !bodyUserId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Payment not configured. Please contact support." }, { status: 503 });
   }
 
-  const priceId = PRICE_IDS[plan];
+  const priceId = PRICE_IDS[plan]?.[billing];
   if (!priceId) {
     return NextResponse.json({ error: "Plan price not configured." }, { status: 503 });
   }
@@ -76,14 +76,18 @@ export async function POST(req: Request) {
     const Stripe = (await import("stripe")).default;
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+    const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
     const stripeSession = await stripe.checkout.sessions.create({
       mode: "subscription",
       payment_method_types: ["card"],
       customer_email: resolvedEmail,
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url: successUrl ?? `${process.env.NEXTAUTH_URL}/register?step=verify&userId=${resolvedUserId}&regToken=${regToken ?? ""}&paid=1`,
-      cancel_url:  cancelUrl  ?? `${process.env.NEXTAUTH_URL}/register?step=pay`,
-      metadata: { userId: resolvedUserId, regToken: regToken ?? "", plan },
+      line_items: [{ price: priceId, quantity: seats }],
+      allow_promotion_codes: true,
+      billing_address_collection: "required",
+      tax_id_collection: { enabled: true },
+      success_url: successUrl ?? `${baseUrl}/register?step=verify&userId=${resolvedUserId}&regToken=${regToken ?? ""}&paid=1`,
+      cancel_url:  cancelUrl  ?? `${baseUrl}/register?step=pay`,
+      metadata: { userId: resolvedUserId, regToken: regToken ?? "", plan, seats: String(seats), billing },
     });
 
     return NextResponse.json({ url: stripeSession.url });
