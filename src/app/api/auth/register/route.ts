@@ -6,6 +6,7 @@ import { verifyTurnstile } from "@/lib/turnstile";
 import { isPasswordStrong } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
+import { sendVerificationEmail } from "@/lib/email";
 
 const RegisterSchema = z.object({
   name:              z.string().min(1).max(100),
@@ -105,7 +106,7 @@ export async function POST(req: Request) {
     },
   });
 
-  // In production: send OTP via email (e.g. Resend, SendGrid, AWS SES)
+  await sendVerificationEmail(email, otp, name).catch(() => {});
   if (process.env.NODE_ENV === "development") {
     console.log(`\n[ISOComply] Email verification OTP for ${email}: ${otp}\n`);
   }

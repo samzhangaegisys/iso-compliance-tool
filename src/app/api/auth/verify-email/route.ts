@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { sendWelcomeEmail } from "@/lib/email";
 
 export async function POST(req: Request) {
   if (!prisma) {
@@ -28,7 +29,7 @@ export async function POST(req: Request) {
   }
 
   // Mark email as verified
-  await prisma.user.update({
+  const user = await prisma.user.update({
     where: { id: userId },
     data: { emailVerified: new Date() },
   });
@@ -37,6 +38,8 @@ export async function POST(req: Request) {
   await prisma.verificationToken.deleteMany({
     where: { identifier: `otp:${email}` },
   });
+
+  await sendWelcomeEmail(email, user.name ?? email).catch(() => {});
 
   return NextResponse.json({ success: true });
 }

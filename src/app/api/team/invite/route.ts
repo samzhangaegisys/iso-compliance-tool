@@ -3,6 +3,7 @@ import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { writeAuditLog } from "@/lib/audit";
+import { sendTeamInviteEmail } from "@/lib/email";
 
 const InviteSchema = z.object({
   email:     z.string().email().max(254),
@@ -18,6 +19,7 @@ export async function POST(req: Request) {
 
   const membership = await prisma.orgMember.findFirst({
     where: { userId: session.user.id, role: { in: ["OWNER", "ADMIN"] } },
+    include: { org: true },
   });
   if (!membership) return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
 
@@ -50,6 +52,15 @@ export async function POST(req: Request) {
   const newMember = await prisma.orgMember.create({
     data: { orgId: membership.orgId, userId: user.id, role },
   });
+
+  const baseUrl = process.env.NEXTAUTH_URL ?? "https://isocomply.io";
+  await sendTeamInviteEmail(
+    email,
+    session.user.name ?? session.user.email ?? "A team member",
+    membership.org.name,
+    role,
+    `${baseUrl}/login`,
+  ).catch(() => {});
 
   await writeAuditLog({
     orgId: membership.orgId,
