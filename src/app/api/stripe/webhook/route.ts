@@ -4,6 +4,11 @@ import { prisma } from "@/lib/prisma";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
+// Stripe v22 wraps responses in Response<T> — helper to extract the underlying object
+function unwrapSub(sub: Stripe.Response<Stripe.Subscription> | Stripe.Subscription): Stripe.Subscription {
+  return sub as Stripe.Subscription;
+}
+
 export async function POST(req: Request) {
   const body = await req.text();
   const sig = req.headers.get("stripe-signature");
@@ -24,47 +29,63 @@ export async function POST(req: Request) {
   switch (event.type) {
     case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
-      const { userId, plan, seats } = session.metadata ?? {};
+      const { userId, plan } = session.metadata ?? {};
       if (!userId || !plan) break;
 
-      const sub = session.subscription
-        ? await stripe.subscriptions.retrieve(session.subscription as string)
-        : null;
+      const membership = await prisma.orgMember.findFirst({
+        where: { userId, role: { in: ["OWNER", "ADMIN"] } },
+      });
+      if (!membership) break;
+
+      const subId = typeof session.subscription === "string"
+        ? session.subscription
+        : (session.subscription as Stripe.Subscription | null)?.id ?? null;
+
+      const sub = subId ? unwrapSub(await stripe.subscriptions.retrieve(subId)) : null;
+
+      const planValue = (["STARTER", "PROFESSIONAL", "ENTERPRISE"].includes(plan.toUpperCase())
+        ? plan.toUpperCase()
+        : "STARTER") as "STARTER" | "PROFESSIONAL" | "ENTERPRISE";
+
+      const customerId = typeof session.customer === "string" ? session.customer : null;
 
       await prisma.subscription.upsert({
-        where: { orgId: userId },
+        where: { stripeSubscriptionId: sub?.id ?? "" },
         create: {
-          orgId: userId,
-          plan: plan.toUpperCase() as "STARTER" | "PROFESSIONAL" | "ENTERPRISE",
+          orgId: membership.orgId,
+          plan: planValue,
           status: "ACTIVE",
           stripeSubscriptionId: sub?.id ?? null,
-          stripeCustomerId: session.customer as string ?? null,
-          currentPeriodEnd: sub ? new Date(sub.current_period_end * 1000) : null,
-          seats: seats ? Number(seats) : 5,
-          billingInterval: sub?.items.data[0]?.plan.interval === "year" ? "ANNUAL" : "MONTHLY",
+          stripeCustomerId: customerId,
+          stripePriceId: sub?.items.data[0]?.price.id ?? null,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          currentPeriodEnd: sub ? new Date((sub as any).current_period_end * 1000) : null,
         },
         update: {
-          plan: plan.toUpperCase() as "STARTER" | "PROFESSIONAL" | "ENTERPRISE",
+          plan: planValue,
           status: "ACTIVE",
-          stripeSubscriptionId: sub?.id ?? null,
-          stripeCustomerId: session.customer as string ?? null,
-          currentPeriodEnd: sub ? new Date(sub.current_period_end * 1000) : null,
-          seats: seats ? Number(seats) : 5,
-          billingInterval: sub?.items.data[0]?.plan.interval === "year" ? "ANNUAL" : "MONTHLY",
+          stripeCustomerId: customerId,
+          stripePriceId: sub?.items.data[0]?.price.id ?? null,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          currentPeriodEnd: sub ? new Date((sub as any).current_period_end * 1000) : null,
         },
       });
       break;
     }
 
     case "customer.subscription.updated": {
-      const sub = event.data.object as Stripe.Subscription;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sub = event.data.object as any;
+      const status: "ACTIVE" | "PAST_DUE" | "CANCELED" | "TRIALING" =
+        sub.status === "active"   ? "ACTIVE" :
+        sub.status === "past_due" ? "PAST_DUE" :
+        sub.status === "canceled" ? "CANCELED" :
+        sub.status === "trialing" ? "TRIALING" : "ACTIVE";
+
       await prisma.subscription.updateMany({
         where: { stripeSubscriptionId: sub.id },
         data: {
-          status: sub.status === "active" ? "ACTIVE"
-            : sub.status === "past_due" ? "PAST_DUE"
-            : sub.status === "canceled" ? "CANCELLED"
-            : "ACTIVE",
+          status,
           currentPeriodEnd: new Date(sub.current_period_end * 1000),
         },
       });
@@ -72,19 +93,22 @@ export async function POST(req: Request) {
     }
 
     case "customer.subscription.deleted": {
-      const sub = event.data.object as Stripe.Subscription;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const sub = event.data.object as any;
       await prisma.subscription.updateMany({
         where: { stripeSubscriptionId: sub.id },
-        data: { status: "CANCELLED" },
+        data: { status: "CANCELED" },
       });
       break;
     }
 
     case "invoice.payment_failed": {
-      const invoice = event.data.object as Stripe.Invoice;
-      if (invoice.subscription) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const invoice = event.data.object as any;
+      const subId: string | null = invoice.subscription ?? null;
+      if (subId) {
         await prisma.subscription.updateMany({
-          where: { stripeSubscriptionId: invoice.subscription as string },
+          where: { stripeSubscriptionId: subId },
           data: { status: "PAST_DUE" },
         });
       }
@@ -92,10 +116,12 @@ export async function POST(req: Request) {
     }
 
     case "invoice.payment_succeeded": {
-      const invoice = event.data.object as Stripe.Invoice;
-      if (invoice.subscription) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const invoice = event.data.object as any;
+      const subId: string | null = invoice.subscription ?? null;
+      if (subId) {
         await prisma.subscription.updateMany({
-          where: { stripeSubscriptionId: invoice.subscription as string },
+          where: { stripeSubscriptionId: subId },
           data: { status: "ACTIVE" },
         });
       }
