@@ -1,17 +1,14 @@
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT ?? 587),
-  secure: process.env.SMTP_SECURE === "true",
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM = process.env.SMTP_FROM ?? "ISOComply <noreply@isocomply.io>";
+const FROM = process.env.EMAIL_FROM ?? "ISOComply <onboarding@resend.dev>";
 const BASE_URL = process.env.NEXTAUTH_URL ?? "https://isocomply.io";
+
+async function send(to: string, subject: string, html: string, text: string) {
+  const { error } = await resend.emails.send({ from: FROM, to, subject, html, text });
+  if (error) throw new Error(error.message);
+}
 
 // ─── Shared layout ────────────────────────────────────────────────────────────
 
@@ -131,7 +128,7 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string) {
 
   const text = `Reset your ISOComply password\n\nWe received a request to reset the password on your account.\n\nClick the link below to reset your password (expires in 1 hour):\n\n${resetUrl}\n\nIf you didn't request this, your password hasn't changed.`;
 
-  await transporter.sendMail({ from: FROM, to, subject: "Reset your ISOComply password", html, text });
+  await send(to, "Reset your ISOComply password", html, text);
 }
 
 // ─── Email verification OTP ───────────────────────────────────────────────────
@@ -164,7 +161,7 @@ export async function sendVerificationEmail(to: string, otp: string, name: strin
 
   const text = `Verify your ISOComply account\n\nHi ${name},\n\nYour verification code is: ${otp}\n\nThis code expires in 1 hour.`;
 
-  await transporter.sendMail({ from: FROM, to, subject: "Your ISOComply verification code", html, text });
+  await send(to, "Your ISOComply verification code", html, text);
 }
 
 // ─── Welcome / onboarding ─────────────────────────────────────────────────────
@@ -214,7 +211,7 @@ export async function sendWelcomeEmail(to: string, name: string) {
 
   const text = `Welcome to ISOComply, ${name.split(" ")[0]}!\n\nYour account is ready. Get started at:\n${dashboardUrl}`;
 
-  await transporter.sendMail({ from: FROM, to, subject: `Welcome to ISOComply, ${name.split(" ")[0]}!`, html, text });
+  await send(to, `Welcome to ISOComply, ${name.split(" ")[0]}!`, html, text);
 }
 
 // ─── Team invitation ──────────────────────────────────────────────────────────
@@ -269,11 +266,5 @@ export async function sendTeamInviteEmail(
 
   const text = `You've been invited to join ${orgName} on ISOComply\n\n${inviterName} has invited you as ${roleLabel}.\n\nAccept the invitation:\n${registerUrl}`;
 
-  await transporter.sendMail({
-    from: FROM,
-    to,
-    subject: `${inviterName} invited you to ${orgName} on ISOComply`,
-    html,
-    text,
-  });
+  await send(to, `${inviterName} invited you to ${orgName} on ISOComply`, html, text);
 }
