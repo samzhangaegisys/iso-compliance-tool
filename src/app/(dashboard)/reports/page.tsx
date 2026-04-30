@@ -404,16 +404,35 @@ function AIAdvisor({ std, ctrl, onClose }: {
     ? ["How do I implement this?", "What evidence do auditors need?", "How long does this take?", "What tools can help?"]
     : ["Where should I start?", "How long to certification?", "What are my biggest risks?", "Which gaps should I fix first?"];
 
-  function ask(question: string) {
+  async function ask(question: string) {
     if (thinking) return;
     setMessages((m) => [...m, { role: "user", text: question }]);
     setInput("");
     setThinking(true);
-    setTimeout(() => {
+    try {
+      const res = await fetch("/api/ai/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question,
+          controlRef: ctrl?.ref,
+          controlTitle: ctrl?.title,
+          controlDescription: ctrl?.description,
+          controlGuidance: ctrl?.guidance,
+          controlRisk: ctrl?.risk,
+          standardCode: std.code,
+          standardName: std.name,
+        }),
+      });
+      const data = await res.json();
+      const answer = data.answer ?? data.error ?? buildAIAnswer(question, ctrl, std);
+      setMessages((m) => [...m, { role: "ai", text: answer }]);
+    } catch {
       const answer = buildAIAnswer(question, ctrl, std);
       setMessages((m) => [...m, { role: "ai", text: answer }]);
+    } finally {
       setThinking(false);
-    }, 900 + Math.random() * 600);
+    }
   }
 
   function handleSubmit(e: React.FormEvent) {
