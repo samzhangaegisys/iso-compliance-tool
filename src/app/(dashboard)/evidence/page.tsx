@@ -426,11 +426,13 @@ function EvidenceRow({
 
 // ── Right preview panel ───────────────────────────────────────────────────────
 
-const MOCK_REVISIONS = [
-  { version: "v2.1", date: "Apr 3, 2026", by: "Sarah K.", note: "Updated scope section" },
-  { version: "v2.0", date: "Jan 10, 2026", by: "Admin", note: "Annual review — no changes" },
-  { version: "v1.0", date: "Mar 15, 2025", by: "Sarah K.", note: "Initial upload" },
-];
+
+interface RevisionEntry {
+  version: string;
+  date: string;
+  by: string;
+  note: string;
+}
 
 function PreviewPanel({
   item,
@@ -449,6 +451,14 @@ function PreviewPanel({
   const [editName, setEditName] = useState(item.name);
   const [editDescription, setEditDescription] = useState(item.description);
   const [editClassification, setEditClassification] = useState<DataClassification>(item.classification);
+  const [revisions, setRevisions] = useState<RevisionEntry[]>([]);
+
+  useEffect(() => {
+    fetch(`/api/evidence/${item.id}`)
+      .then((r) => r.json())
+      .then(({ history }) => { if (Array.isArray(history)) setRevisions(history); })
+      .catch(() => {});
+  }, [item.id]);
 
   return (
     <div className="shrink-0 border-l border-border bg-background flex flex-col overflow-hidden relative" style={{ width: panelWidth }}>
@@ -661,19 +671,23 @@ function PreviewPanel({
             Revision History
           </p>
           <div className="space-y-2">
-            {MOCK_REVISIONS.map((rev, i) => (
-              <div key={i} className="flex items-start gap-2">
-                <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded shrink-0">
-                  {rev.version}
-                </span>
-                <div>
-                  <p className="text-[11px] text-foreground">{rev.note}</p>
-                  <p className="text-[10px] text-muted-foreground">
-                    {rev.by} · {rev.date}
-                  </p>
+            {revisions.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground">No history yet.</p>
+            ) : (
+              revisions.map((rev, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded shrink-0">
+                    {rev.version}
+                  </span>
+                  <div>
+                    <p className="text-[11px] text-foreground">{rev.note}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {rev.by} · {rev.date}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </section>
           </>
