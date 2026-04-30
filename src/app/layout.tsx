@@ -4,6 +4,7 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 import { ChatWidgetGuard } from "@/components/landing/chat-widget-guard";
 import { CookieBanner } from "@/components/landing/cookie-banner";
+import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -39,6 +40,7 @@ export default function RootLayout({
         </Providers>
         <ChatWidgetGuard />
         <CookieBanner />
+        <Analytics />
       </body>
     </html>
   );
