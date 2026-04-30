@@ -66,7 +66,7 @@ Guidance: ${controlGuidance}`
       model: google("gemini-2.0-flash-exp"),
       system: systemPrompt,
       prompt: question,
-      maxTokens: 600,
+      maxOutputTokens: 600,
     });
 
     return NextResponse.json({ answer: text });

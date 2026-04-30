@@ -778,12 +778,14 @@ function AssessmentView({ std, assessment, onChange, onAskAI, onComplete }: {
 
 // ── Report view ───────────────────────────────────────────────────────────────
 
-function ReportView({ std, assessment, onCreateTasks }: {
+function ReportView({ std, assessment, onCreateTasks, projectName }: {
   std: Standard;
   assessment: Assessment;
   onCreateTasks: (gaps: Control[]) => void;
+  projectName?: string;
 }) {
   const [filter, setFilter] = useState<"all" | Risk>("all");
+  const [exporting, setExporting] = useState(false);
   const controls = allControls(std);
   const score    = computeScore(controls, assessment);
 
@@ -817,6 +819,133 @@ function ReportView({ std, assessment, onCreateTasks }: {
     const s = computeScore(cl.controls, assessment);
     return { ...cl, score: s };
   });
+
+  const allGaps = controls
+    .filter((c) => { const r = assessment[c.ref]?.rating ?? "NOT_STARTED"; return r !== "IMPLEMENTED" && r !== "NOT_APPLICABLE"; })
+    .sort((a, b) => ({ CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 }[a.risk] - { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 }[b.risk]));
+
+  async function handleExportPDF() {
+    setExporting(true);
+    try {
+      const { jsPDF } = await import("jspdf");
+      const autoTable = (await import("jspdf-autotable")).default;
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const now = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+      const W = 210;
+
+      // Header bar
+      doc.setFillColor(37, 99, 235);
+      doc.rect(0, 0, W, 28, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.text("Gap Analysis Report", 14, 12);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.text(`${std.name}${projectName ? "  ·  " + projectName : ""}`, 14, 19);
+      doc.text(`Generated ${now}`, 14, 25);
+
+      // Score summary row
+      const summaryY = 36;
+      const cols = [
+        { label: "Compliance Score", value: `${score}%` },
+        { label: "Implemented",      value: String(implemented) },
+        { label: "Partial",          value: String(partial) },
+        { label: "Not in place",     value: String(notStarted) },
+        { label: "Not applicable",   value: String(na) },
+        { label: "Critical gaps",    value: String(critical) },
+      ];
+      const boxW = (W - 28) / cols.length;
+      cols.forEach((col, i) => {
+        const x = 14 + i * boxW;
+        doc.setFillColor(248, 250, 252);
+        doc.roundedRect(x, summaryY, boxW - 2, 16, 2, 2, "F");
+        doc.setTextColor(37, 99, 235);
+        doc.setFontSize(13);
+        doc.setFont("helvetica", "bold");
+        doc.text(col.value, x + (boxW - 2) / 2, summaryY + 8, { align: "center" });
+        doc.setTextColor(100, 116, 139);
+        doc.setFontSize(7);
+        doc.setFont("helvetica", "normal");
+        doc.text(col.label, x + (boxW - 2) / 2, summaryY + 13, { align: "center" });
+      });
+
+      // Clause breakdown table
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Clause Breakdown", 14, summaryY + 26);
+
+      autoTable(doc, {
+        startY: summaryY + 29,
+        head: [["Clause", "Title", "Score"]],
+        body: clauseBreakdown.map((cl) => [cl.number, cl.title, `${cl.score}%`]),
+        styles: { fontSize: 8, cellPadding: 2.5 },
+        headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: "bold" },
+        columnStyles: { 0: { cellWidth: 18 }, 2: { cellWidth: 16, halign: "right" } },
+        margin: { left: 14, right: 14 },
+      });
+
+      // Gap list table
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const afterClause = (doc as any).lastAutoTable.finalY + 8;
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(30, 41, 59);
+      doc.text(`Prioritised Gap List (${allGaps.length} gaps)`, 14, afterClause);
+
+      const ratingLabel: Record<Rating, string> = {
+        NOT_STARTED: "Not in place", PARTIAL: "Partial",
+        IMPLEMENTED: "Implemented", NOT_APPLICABLE: "N/A",
+      };
+
+      autoTable(doc, {
+        startY: afterClause + 3,
+        head: [["Ref", "Control", "Risk", "Status", "Notes"]],
+        body: allGaps.map((c) => [
+          c.ref,
+          c.title,
+          c.risk,
+          ratingLabel[assessment[c.ref]?.rating ?? "NOT_STARTED"],
+          assessment[c.ref]?.notes ?? "",
+        ]),
+        styles: { fontSize: 7.5, cellPadding: 2 },
+        headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: "bold" },
+        columnStyles: {
+          0: { cellWidth: 14 },
+          2: { cellWidth: 18 },
+          3: { cellWidth: 22 },
+          4: { cellWidth: 40 },
+        },
+        margin: { left: 14, right: 14 },
+        didParseCell: (data) => {
+          if (data.column.index === 2 && data.section === "body") {
+            const risk = data.cell.raw as string;
+            data.cell.styles.textColor =
+              risk === "CRITICAL" ? [220, 38, 38] :
+              risk === "HIGH"     ? [234, 88, 12] :
+              risk === "MEDIUM"   ? [161, 98, 7]  : [71, 85, 105];
+            data.cell.styles.fontStyle = "bold";
+          }
+        },
+      });
+
+      // Footer on each page
+      const pageCount = doc.getNumberOfPages();
+      for (let p = 1; p <= pageCount; p++) {
+        doc.setPage(p);
+        doc.setFontSize(7);
+        doc.setTextColor(148, 163, 184);
+        doc.setFont("helvetica", "normal");
+        doc.text(`${std.short} Gap Analysis  ·  ${now}  ·  Page ${p} of ${pageCount}`, W / 2, 291, { align: "center" });
+      }
+
+      const filename = `gap-analysis-${std.short.replace(/\s+/g, "-").toLowerCase()}-${new Date().toISOString().slice(0, 10)}.pdf`;
+      doc.save(filename);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -942,8 +1071,10 @@ function ReportView({ std, assessment, onCreateTasks }: {
           className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-colors shadow-sm">
           <ListTodo className="size-4" /> Create tasks from {gaps.length} gaps
         </button>
-        <button className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-border bg-card hover:bg-muted text-sm font-medium transition-colors">
-          <Download className="size-4" /> Export PDF report
+        <button onClick={handleExportPDF} disabled={exporting}
+          className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-border bg-card hover:bg-muted text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+          {exporting ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+          {exporting ? "Generating…" : "Export PDF report"}
         </button>
       </div>
 
@@ -1197,7 +1328,7 @@ export default function GapAnalysisPage() {
             {mode === "assess" ? (
               <AssessmentView std={std} assessment={assessment} onChange={setRating} onAskAI={handleAskAI} onComplete={() => setCompletionOpen(true)} />
             ) : (
-              <ReportView std={std} assessment={assessment} onCreateTasks={handleCreateTasks} />
+              <ReportView std={std} assessment={assessment} onCreateTasks={handleCreateTasks} projectName={selectedProject?.name} />
             )}
           </div>
 
