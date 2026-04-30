@@ -70,42 +70,16 @@ const navItems = [
   },
 ];
 
-// ── Mock notifications ────────────────────────────────────────────────────────
+// ── Notification types ────────────────────────────────────────────────────────
 
-const NOTIFICATIONS = [
-  {
-    id: 1,
-    type: "warning" as const,
-    title: "3 critical controls unaddressed",
-    body: "ISO 27001 gap analysis — A.5.15, A.8.2, A.8.5 are CRITICAL and not in place.",
-    time: "2 hours ago",
-    read: false,
-  },
-  {
-    id: 2,
-    type: "info" as const,
-    title: "Task assigned to you",
-    body: "Complete risk assessment documentation — due in 14 days.",
-    time: "Yesterday",
-    read: false,
-  },
-  {
-    id: 3,
-    type: "warning" as const,
-    title: "Evidence expiry reminder",
-    body: "A.5.1 information security policy document is due for annual review.",
-    time: "2 days ago",
-    read: false,
-  },
-  {
-    id: 4,
-    type: "success" as const,
-    title: "ISO 45001 certification ready",
-    body: "OH&S Certification Renewal reached 91% — above the 80% threshold.",
-    time: "3 weeks ago",
-    read: true,
-  },
-];
+interface Notification {
+  id: string;
+  type: "warning" | "info" | "success";
+  title: string;
+  body: string;
+  time: string;
+  read: boolean;
+}
 
 const PLAN_CFG: Record<Plan, { label: string; color: string; badge: string; description: string }> = {
   starter:      { label: "Starter",      color: "text-amber-700",  badge: "bg-amber-100 text-amber-700 border-amber-200",   description: "1 ISO standard · up to 5 users" },
@@ -186,7 +160,7 @@ function TopBar() {
   const [planOpen, setPlanOpen]       = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [orgMenuOpen, setOrgMenuOpen]   = useState(false);
-  const [notifications, setNotifications] = useState(NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
   const isMasterAdmin = session?.user?.email === "admin@isocomply.io";
   const orgName = org?.name ?? (isMasterAdmin ? "Admin" : "…");
@@ -219,12 +193,30 @@ function TopBar() {
     return () => document.removeEventListener("mousedown", handle);
   }, []);
 
+  // Fetch real notifications
+  useEffect(() => {
+    const dismissed = new Set<string>(JSON.parse(localStorage.getItem("dismissed-notifs") ?? "[]"));
+    fetch("/api/notifications")
+      .then((r) => r.json())
+      .then(({ notifications: fetched }) => {
+        if (!Array.isArray(fetched)) return;
+        setNotifications(
+          fetched
+            .filter((n: Notification) => !dismissed.has(n.id))
+            .map((n: Notification) => ({ ...n, read: false }))
+        );
+      })
+      .catch(() => {});
+  }, []);
+
   function markAllRead() {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   }
 
-  function dismiss(id: number) {
+  function dismiss(id: string) {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
+    const dismissed: string[] = JSON.parse(localStorage.getItem("dismissed-notifs") ?? "[]");
+    localStorage.setItem("dismissed-notifs", JSON.stringify([...dismissed, id]));
   }
 
   const notifIcon = {

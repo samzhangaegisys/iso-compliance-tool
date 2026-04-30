@@ -257,6 +257,24 @@ function BillingTab() {
   const isOwner = org?.role === "OWNER";
   const [upgrading, setUpgrading] = useState<string | null>(null);
   const [upgradeError, setUpgradeError] = useState("");
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  async function handleManageBilling() {
+    setPortalLoading(true);
+    try {
+      const res = await fetch("/api/stripe/portal", { method: "POST" });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setUpgradeError(data.error ?? "Could not open billing portal.");
+      }
+    } catch {
+      setUpgradeError("Something went wrong. Please try again.");
+    } finally {
+      setPortalLoading(false);
+    }
+  }
 
   async function handleUpgrade(plan: string) {
     setUpgrading(plan);
@@ -325,6 +343,16 @@ function BillingTab() {
           </div>
           <Badge className="capitalize">{currentPlan}</Badge>
         </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full"
+          disabled={portalLoading}
+          onClick={handleManageBilling}
+        >
+          {portalLoading ? "Opening…" : "Manage billing"}
+        </Button>
 
         {currentPlan !== "enterprise" && (
           <div className="space-y-2">

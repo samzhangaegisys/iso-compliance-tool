@@ -19,7 +19,7 @@ export async function POST(req: Request) {
 
   const membership = await prisma.orgMember.findFirst({
     where: { userId: session.user.id, role: { in: ["OWNER", "ADMIN"] } },
-    include: { org: true },
+    include: { organisation: true },
   });
   if (!membership) return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
 
@@ -57,7 +57,7 @@ export async function POST(req: Request) {
   await sendTeamInviteEmail(
     email,
     session.user.name ?? session.user.email ?? "A team member",
-    membership.org.name,
+    membership.organisation.name,
     role,
     `${baseUrl}/login`,
   ).catch(() => {});
