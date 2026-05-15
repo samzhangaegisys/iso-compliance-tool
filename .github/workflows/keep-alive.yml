@@ -1,22 +1,39 @@
 name: Keep databases alive
 
+# Supabase free-tier projects auto-pause after ~1 week of database inactivity.
+# This pings each project's Postgres directly via the Management API,
+# which (unlike pinging the Vercel app) doesn't depend on the deployment
+# being up or publicly reachable (staging is gated by Vercel SSO).
+
 on:
   schedule:
     - cron: "0 3 * * *"  # 3am UTC = 1pm AEST
-  workflow_dispatch:       # allow manual trigger
+  workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping production
+      - name: Ping production Supabase
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://iso-compliance-tool-kappa.vercel.app/api/health)
-          echo "Production status: $STATUS"
-          [ "$STATUS" = "200" ] || exit 1
+          RESP=$(curl -sf -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query":"SELECT 1 AS keep_alive;"}' \
+            "https://api.supabase.com/v1/projects/cfeussqcnosdazazwvih/database/query")
+          echo "Production response: $RESP"
+          echo "$RESP" | grep -q '"keep_alive":1' || exit 1
 
-      - name: Ping staging
+      - name: Ping staging Supabase
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://iso-compliance-tool-git-staging-samzhangaegisys-projects.vercel.app/api/health)
-          echo "Staging status: $STATUS"
-          [ "$STATUS" = "200" ] || exit 1
+          RESP=$(curl -sf -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query":"SELECT 1 AS keep_alive;"}' \
+            "https://api.supabase.com/v1/projects/nciewexktrojzgftjoav/database/query")
+          echo "Staging response: $RESP"
+          echo "$RESP" | grep -q '"keep_alive":1' || exit 1
