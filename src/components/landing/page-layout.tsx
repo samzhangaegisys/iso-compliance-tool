@@ -73,7 +73,7 @@ export function SiteNav() {
               className="bg-blue-600 hover:bg-blue-500 text-white"
               render={<Link href="/register" />}
             >
-              Get Started Free
+              Get Started
             </Button>
           </div>
         </div>
