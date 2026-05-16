@@ -56,7 +56,7 @@ interface RegState {
   consentTerms: boolean; consentMarketing: boolean;
   userId: string; regToken: string;
   paid: boolean;
-  otp: string;
+  otp: string; devOtp: string;
   mfaQr: string; mfaSecret: string; mfaCode: string; mfaEnabled: boolean;
   orgName: string;
 }
@@ -66,7 +66,7 @@ const INITIAL: RegState = {
   name: "", email: "", phone: "", dialCode: "+61", password: "",
   consentTerms: false, consentMarketing: false,
   userId: "", regToken: "",
-  paid: false, otp: "",
+  paid: false, otp: "", devOtp: "",
   mfaQr: "", mfaSecret: "", mfaCode: "", mfaEnabled: false,
   orgName: "",
 };
@@ -194,7 +194,11 @@ function RegisterForm() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Registration failed. Please try again."); return; }
-      set({ userId: data.userId, regToken: data.regToken });
+      set({
+        userId: data.userId,
+        regToken: data.regToken,
+        ...(data.devOtp ? { devOtp: data.devOtp, otp: data.devOtp } : {}),
+      });
       setStep(skipPayment ? 4 : 3);
     } catch { setError("Something went wrong. Please try again."); }
     finally { setLoading(false); }
@@ -597,10 +601,9 @@ function RegisterForm() {
                   <button type="button" onClick={handleResendOtp} className="text-blue-600 hover:underline">Resend code</button>
                 </p>
 
-                {/* Dev helper — shows OTP hint when DB is live */}
-                {process.env.NODE_ENV === "development" && (
+                {state.devOtp && (
                   <p className="text-center text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                    Dev mode: check your terminal for the OTP code (printed by the register API).
+                    Non-production environment: code auto-filled (<span className="font-mono font-semibold">{state.devOtp}</span>). Email delivery is sandboxed until a Resend domain is verified.
                   </p>
                 )}
               </div>
