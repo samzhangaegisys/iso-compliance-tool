@@ -138,13 +138,27 @@ function RegisterForm() {
 
   const set = (patch: Partial<RegState>) => setState((s) => ({ ...s, ...patch }));
 
-  // Resume after Stripe redirect
+  // Resume after Stripe redirect. We saved the in-memory registration state to
+  // sessionStorage right before redirecting to Stripe Checkout, so we can rehydrate
+  // email/password/devOtp on return. The URL still carries userId+regToken+step=verify
+  // so a returning user with cleared sessionStorage (e.g., reopened tab) at least lands
+  // on the right step — they'll just need to enter their email and request a resent code.
   useEffect(() => {
     const urlStep = searchParams.get("step");
     const urlUserId = searchParams.get("userId");
     const urlRegToken = searchParams.get("regToken");
     if (urlStep === "verify" && urlUserId && urlRegToken) {
-      set({ userId: urlUserId, regToken: urlRegToken, paid: true });
+      let restored: Partial<RegState> = {};
+      try {
+        const raw = sessionStorage.getItem("isocomply_reg_state");
+        if (raw) restored = JSON.parse(raw) as Partial<RegState>;
+      } catch {}
+      set({
+        ...restored,
+        userId: urlUserId,
+        regToken: urlRegToken,
+        paid: true,
+      });
       setStep(4);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -214,6 +228,10 @@ function RegisterForm() {
       const data = await res.json();
       if (data.devMode) { set({ paid: true }); setStep(4); return; }
       if (!res.ok || !data.url) { setError(data.error ?? "Payment setup failed."); return; }
+      // Persist the in-memory state so we can rehydrate email/password/devOtp after
+      // Stripe's redirect reloads the page. sessionStorage is per-tab and cleared on
+      // close, which scopes the brief password exposure appropriately.
+      try { sessionStorage.setItem("isocomply_reg_state", JSON.stringify(state)); } catch {}
       window.location.href = data.url;
     } catch { setError("Something went wrong. Please try again."); }
     finally { setLoading(false); }
@@ -223,6 +241,10 @@ function RegisterForm() {
     e.preventDefault();
     setError(null);
     if (state.otp.length !== 6) { setError("Please enter the 6-digit code from your email."); return; }
+    if (!state.email || !state.userId || !state.regToken) {
+      setError("Your registration session has expired. Please refresh and start again.");
+      return;
+    }
     setLoading(true);
     try {
       const res = await fetch("/api/auth/verify-email", {
@@ -274,6 +296,9 @@ function RegisterForm() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Failed to create workspace. Please try again."); return; }
+      // Registration flow is complete — clear the persisted state so it doesn't leak
+      // into any future tab on this origin.
+      try { sessionStorage.removeItem("isocomply_reg_state"); } catch {}
       // Sign out any existing session (e.g. master admin), then sign in as the new user.
       // The user just enabled MFA in step 5, so we must pass the TOTP code along with
       // credentials — `state.mfaCode` is the code they just entered to confirm MFA setup
