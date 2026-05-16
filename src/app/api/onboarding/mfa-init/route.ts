@@ -23,6 +23,18 @@ export async function GET(req: Request) {
     where: { identifier: `reg:${userId}`, token: regToken, expires: { gt: new Date() } },
   });
   if (!regRecord) {
+    const dbToken = await prisma.verificationToken.findFirst({
+      where: { identifier: `reg:${userId}` },
+      select: { token: true, expires: true },
+    });
+    console.log("[mfa-init] 401 reg session invalid", {
+      userId, email,
+      regTokenLen: regToken.length, regTokenPrefix: regToken.slice(0, 12),
+      dbTokenPrefix: dbToken?.token?.slice(0, 12) ?? null,
+      dbExpires: dbToken?.expires ?? null,
+      now: new Date().toISOString(),
+      tokenMatches: dbToken?.token === regToken,
+    });
     return NextResponse.json({ error: "Invalid or expired session." }, { status: 401 });
   }
 
