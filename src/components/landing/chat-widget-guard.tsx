@@ -20,6 +20,8 @@ const APP_ROUTE_PREFIXES = [
   "/vendors",
   "/policies",
   "/audit-log",
+  "/cross-mappings",
+  "/frameworks",
   "/api-docs", // dev/customer-facing API docs render in the same shell
 ];
 
