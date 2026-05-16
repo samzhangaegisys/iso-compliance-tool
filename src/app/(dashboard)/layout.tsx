@@ -31,6 +31,7 @@ import {
   ScrollText,
   Building,
   ScrollIcon,
+  Link2,
 } from "lucide-react";
 import {
   Sidebar,
@@ -66,6 +67,7 @@ const navItems = [
       { label: "Risks", href: "/risks", icon: ShieldAlert },
       { label: "Vendors", href: "/vendors", icon: Building },
       { label: "Policies", href: "/policies", icon: ScrollIcon },
+      { label: "Cross-Maps", href: "/cross-mappings", icon: Link2 },
       { label: "Gap Analysis", href: "/reports", icon: BarChart3 },
     ],
   },
