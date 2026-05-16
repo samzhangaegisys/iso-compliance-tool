@@ -9,9 +9,6 @@ function generateOtp(): string {
 
 export async function POST(req: Request) {
   const ip = getClientIp(req);
-  if (!rateLimit(`resend-otp:${ip}`, 5, 5 * 60 * 1000)) {
-    return NextResponse.json({ error: "Too many resend attempts. Please wait a few minutes." }, { status: 429 });
-  }
   if (!prisma) {
     return NextResponse.json({ error: "Service temporarily unavailable." }, { status: 503 });
   }
@@ -19,6 +16,14 @@ export async function POST(req: Request) {
   const { userId, regToken, email } = await req.json();
   if (!userId || !regToken || !email) {
     return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
+  }
+
+  // 60s cooldown per email; backed by a per-IP burst guard for abuse protection.
+  if (!rateLimit(`resend-otp-cooldown:${email}`, 1, 60 * 1000)) {
+    return NextResponse.json({ error: "Please wait 60 seconds before requesting another code." }, { status: 429 });
+  }
+  if (!rateLimit(`resend-otp-ip:${ip}`, 10, 60 * 60 * 1000)) {
+    return NextResponse.json({ error: "Too many resend attempts from this network. Please try again later." }, { status: 429 });
   }
 
   // Validate the registration session
