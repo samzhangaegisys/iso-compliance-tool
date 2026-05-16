@@ -9,10 +9,10 @@ import { checkProjectLimit, upgradeResponse } from "@/lib/plan-limits";
 const CreateProjectSchema = z.object({
   standardCode: z.string().min(1).max(50),
   name:         z.string().min(1).max(255),
-  description:  z.string().max(1000).optional(),
-  targetDate:   z.string().datetime().optional(),
-  startDate:    z.string().datetime().optional(),
-  leadUserId:   z.string().cuid().optional(),
+  description:  z.string().max(1000).nullable().optional(),
+  targetDate:   z.string().datetime().nullable().optional(),
+  startDate:    z.string().datetime().nullable().optional(),
+  leadUserId:   z.string().cuid().nullable().optional(),
 });
 
 export async function GET() {
