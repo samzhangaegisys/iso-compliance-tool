@@ -32,6 +32,7 @@ import {
   Building,
   ScrollIcon,
   Link2,
+  FileCog,
 } from "lucide-react";
 import {
   Sidebar,
@@ -61,6 +62,7 @@ const navItems = [
     items: [
       { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
       { label: "Standards", href: "/standards", icon: BookOpen },
+      { label: "Frameworks", href: "/frameworks", icon: FileCog },
       { label: "Projects", href: "/projects", icon: FolderOpen },
       { label: "Tasks", href: "/tasks", icon: ClipboardList },
       { label: "Evidence", href: "/evidence", icon: FileText },
