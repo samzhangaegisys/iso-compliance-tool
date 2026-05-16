@@ -31,6 +31,7 @@ export const PLANS: PlanDef[] = [
       "AI-guided gap analysis",
       "Evidence vault with 30-day expiry warnings",
       "Tasks: Kanban, assignment, due dates, comments",
+      "Cross-framework control mappings (re-use evidence across standards)",
       "Standard PDF audit reports",
       "AI Compliance Advisor — 10 queries/month",
       "5 users (fixed seat plan)",
