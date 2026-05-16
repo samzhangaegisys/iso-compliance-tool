@@ -52,6 +52,8 @@ export const PLANS: PlanDef[] = [
       "Unlimited active compliance projects",
       "Unlimited AI Compliance Advisor queries",
       "Risk register (ISO 27001 §6.1.2 compliant)",
+      "Vendor / TPRM module — up to 25 vendors",
+      "Policy library — up to 50 policies with version history & templates",
       "Multi-threshold expiry alerts with escalation",
       "Branded / white-label audit reports",
       "Unlimited users (min. 5)",
@@ -71,6 +73,7 @@ export const PLANS: PlanDef[] = [
     features: [
       "Everything in Professional, plus:",
       "Full audit log viewer with CSV export",
+      "Unlimited vendors + unlimited policies",
       "SSO / SAML",
       "Custom integrations & API",
       "Automated onboarding portal",

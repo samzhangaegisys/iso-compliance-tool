@@ -22,6 +22,8 @@ model Organisation {
   members              OrgMember[]
   subscriptions        Subscription[]
   risks                Risk[]
+  vendors              Vendor[]
+  policies             Policy[]
 }
 
 model OrgMember {
@@ -370,4 +372,99 @@ enum RiskStatus {
   IN_TREATMENT
   CLOSED
   ACCEPTED
+}
+
+// ── Vendor / TPRM ──────────────────────────────────────────────────────────
+
+model Vendor {
+  id              String         @id @default(cuid())
+  orgId           String
+  name            String
+  service         String?        // e.g. "Cloud hosting", "Payment processing"
+  dataCategories  String[]       @default([])   // PII, payment, IP, etc.
+  inherentRisk    VendorRiskLevel @default(MEDIUM)
+  certifications  String[]       @default([])   // ["SOC2", "ISO27001", "HIPAA"]
+  certExpiry      DateTime?
+  lastReviewDate  DateTime?
+  dpaSignedOn     DateTime?
+  ownerId         String?
+  ownerName       String?
+  contactEmail    String?
+  websiteUrl      String?
+  notes           String?
+  status          VendorStatus   @default(ACTIVE)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  organisation    Organisation   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([orgId, status])
+}
+
+enum VendorRiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum VendorStatus {
+  ACTIVE
+  PENDING_REVIEW
+  ARCHIVED
+}
+
+// ── Policy library ─────────────────────────────────────────────────────────
+
+model Policy {
+  id              String          @id @default(cuid())
+  orgId           String
+  title           String
+  description     String?
+  category        PolicyCategory  @default(INFOSEC)
+  currentVersion  Int             @default(1)
+  status          PolicyStatus    @default(DRAFT)
+  ownerId         String?
+  ownerName       String?
+  nextReviewDate  DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  organisation    Organisation    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  versions        PolicyVersion[]
+
+  @@index([orgId])
+  @@index([orgId, status])
+}
+
+model PolicyVersion {
+  id          String   @id @default(cuid())
+  policyId    String
+  version     Int
+  content     String                    // markdown
+  changeNotes String?
+  createdAt   DateTime @default(now())
+  createdBy   String
+  policy      Policy   @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  @@unique([policyId, version])
+  @@index([policyId])
+}
+
+enum PolicyCategory {
+  INFOSEC
+  ACCEPTABLE_USE
+  DATA_RETENTION
+  INCIDENT_RESPONSE
+  ACCESS_CONTROL
+  BUSINESS_CONTINUITY
+  CHANGE_MANAGEMENT
+  THIRD_PARTY
+  PRIVACY
+  OTHER
+}
+
+enum PolicyStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
 }
