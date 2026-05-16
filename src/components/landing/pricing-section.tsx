@@ -142,7 +142,9 @@ export function PricingSection() {
                       }`}
                     >
                       <Users className="size-3" />
-                      Min. {plan.minUsers} users · you choose the count at sign-up
+                      {plan.maxUsers !== null
+                        ? `${plan.minUsers} users (fixed seat plan)`
+                        : `Min. ${plan.minUsers} users · scale up any time`}
                     </div>
                   </div>
 

@@ -40,6 +40,10 @@ export async function GET() {
       plan,
       isNew,
       role: membership.role,
+      logoUrl: org.logoUrl ?? null,
+      brandingPrimaryColor: org.brandingPrimaryColor ?? null,
+      brandingDisplayName: org.brandingDisplayName ?? null,
+      expiryThresholds: org.expiryThresholds ?? [30],
     },
   });
 }

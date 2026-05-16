@@ -10,6 +10,10 @@ export interface OrgData {
   plan: string; // "starter" | "professional" | "enterprise"
   isNew: boolean; // org created within 30 days
   role: string;  // "OWNER" | "ADMIN" | "AUDITOR" | "MEMBER"
+  logoUrl: string | null;
+  brandingPrimaryColor: string | null;
+  brandingDisplayName: string | null;
+  expiryThresholds: number[];
 }
 
 const OrgContext = createContext<OrgData | null>(null);

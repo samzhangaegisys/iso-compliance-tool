@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ISO_STANDARDS } from "@/lib/iso-data";
 import { writeAuditLog } from "@/lib/audit";
+import { checkProjectLimit, upgradeResponse } from "@/lib/plan-limits";
 
 const CreateProjectSchema = z.object({
   standardCode: z.string().min(1).max(50),
@@ -69,6 +70,15 @@ export async function POST(req: Request) {
     where: { userId: session.user.id },
   });
   if (!membership) return NextResponse.json({ error: "No organisation found" }, { status: 400 });
+
+  // Enforce plan limit on active compliance projects (Starter: 2, Pro+: unlimited).
+  const limit = await checkProjectLimit(membership.orgId);
+  if (!limit.allowed) {
+    return NextResponse.json(
+      upgradeResponse("Active compliance projects", limit.used, limit.max, limit.plan),
+      { status: 402 },
+    );
+  }
 
   const parsed = CreateProjectSchema.safeParse(await req.json());
   if (!parsed.success) {

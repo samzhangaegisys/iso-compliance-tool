@@ -59,6 +59,7 @@ interface EvidenceItem {
   description: string;
   tags: string[];
   source: "computer" | "onedrive" | "googledrive";
+  expiresAt: string | null;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -127,6 +128,35 @@ function ClassificationBadge({ classification }: { classification: DataClassific
   return (
     <span className={`inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded border ${cfg.className}`}>
       {cfg.label}
+    </span>
+  );
+}
+
+// ── Expiry chip ───────────────────────────────────────────────────────────────
+
+function ExpiryChip({ expiresAt }: { expiresAt: string | null }) {
+  if (!expiresAt) return null;
+  const days = Math.ceil((new Date(expiresAt).getTime() - Date.now()) / 86_400_000);
+  let cls = "bg-emerald-50 text-emerald-700 border-emerald-200";
+  let label: string;
+  if (days < 0) {
+    cls = "bg-red-50 text-red-700 border-red-200";
+    label = `Expired ${-days}d ago`;
+  } else if (days === 0) {
+    cls = "bg-red-50 text-red-700 border-red-200";
+    label = "Expires today";
+  } else if (days <= 7) {
+    cls = "bg-red-50 text-red-700 border-red-200";
+    label = `Expires in ${days}d`;
+  } else if (days <= 30) {
+    cls = "bg-amber-50 text-amber-700 border-amber-200";
+    label = `Expires in ${days}d`;
+  } else {
+    label = `Expires in ${days}d`;
+  }
+  return (
+    <span className={`inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded border ${cls}`}>
+      {label}
     </span>
   );
 }
@@ -358,7 +388,10 @@ function EvidenceCard({
           )}
 
           <div className="flex items-center justify-between gap-1 pt-0.5">
-            <ClassificationBadge classification={item.classification} />
+            <div className="flex items-center gap-1 flex-wrap">
+              <ClassificationBadge classification={item.classification} />
+              <ExpiryChip expiresAt={item.expiresAt} />
+            </div>
             <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
               <SourceIcon source={item.source} />
               <span>{item.uploadedDate}</span>
@@ -418,6 +451,7 @@ function EvidenceRow({
           {item.type}
         </span>
         <ClassificationBadge classification={item.classification} />
+        <ExpiryChip expiresAt={item.expiresAt} />
         <SourceIcon source={item.source} />
       </div>
     </div>
@@ -737,6 +771,7 @@ function UploadModal({ onClose, onUploaded, projects }: { onClose: () => void; o
   const [selectedControl, setSelectedControl] = useState("");
   const [description, setDescription] = useState("");
   const [classification, setClassification] = useState<"PUBLIC" | "INTERNAL" | "CONFIDENTIAL" | "RESTRICTED">("INTERNAL");
+  const [expiresAt, setExpiresAt] = useState(""); // YYYY-MM-DD
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
 
@@ -993,6 +1028,22 @@ function UploadModal({ onClose, onUploaded, projects }: { onClose: () => void; o
                 />
               </div>
 
+              {/* Expiry date (optional) */}
+              <div>
+                <label className="text-xs font-medium text-foreground block mb-1">
+                  Expires on <span className="text-muted-foreground font-normal">(optional)</span>
+                </label>
+                <input
+                  type="date"
+                  value={expiresAt}
+                  onChange={(e) => setExpiresAt(e.target.value)}
+                  className="w-full text-sm border border-border rounded-lg px-2.5 py-1.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Used for renewal alerts — leave blank for evidence that doesn&apos;t expire.
+                </p>
+              </div>
+
               {/* Classification */}
               <div>
                 <label className="text-xs font-medium text-foreground block mb-1.5">
@@ -1063,6 +1114,7 @@ function UploadModal({ onClose, onUploaded, projects }: { onClose: () => void; o
                         description: description || undefined,
                         fileType: fileName.split(".").pop()?.toUpperCase(),
                         classification,
+                        expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
                       }),
                     });
                     const data = await res.json();
@@ -1132,7 +1184,7 @@ export default function EvidencePage() {
           id: string; name: string; description: string; fileType: string | null;
           fileSize: number | null; uploadedBy: string; createdAt: string;
           controlRef: string; controlTitle: string; standard: string; projectName: string;
-          classification?: string; fileUrl?: string | null;
+          classification?: string; fileUrl?: string | null; expiresAt?: string | null;
         }) => ({
           id: e.id,
           name: e.name,
@@ -1150,6 +1202,7 @@ export default function EvidencePage() {
           tags: [],
           source: "computer" as const,
           description: e.description,
+          expiresAt: e.expiresAt ?? null,
         }));
         setEvidence(mapped);
         setLoadingEvidence(false);

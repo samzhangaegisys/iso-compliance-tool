@@ -13,15 +13,15 @@ const FAQ: Record<string, string> = {
   "What ISO standards do you support?":
     "ISOComply supports ISO 27001 (Information Security), ISO 9001 (Quality), ISO 14001 (Environmental), ISO 45001 (Health & Safety), and ISO 42001 (AI Management). You can manage multiple standards simultaneously and spot shared controls.",
   "What's the cheapest plan?":
-    "Our Starter plan is A$29/user/month with a 5-user minimum, billed monthly. It includes 1 ISO standard of your choice, AI-guided gap analysis, the evidence vault, PDF audit reports, and email support. Switch to annual billing and save 20%. Upgrade to Professional or Enterprise any time from your dashboard.",
+    "Our Starter plan is a fixed 5-seat plan at A$29/user/month (A$145/month total). You get all 5 ISO standards, up to 2 active compliance projects, AI-guided gap analysis, the evidence vault, Kanban task management, standard PDF audit reports, 10 AI Compliance Advisor queries per month, and email support. Switch to annual billing and save 20%. Upgrade to Professional any time from your dashboard for unlimited projects, users, and AI queries.",
   "How long does setup take?":
     "Most teams are up and running within an hour. You select your ISO standards, import your existing controls (or start fresh), and the gap analysis engine generates your first readiness report immediately. No lengthy onboarding or professional services needed.",
   "How is my data secured?":
     "ISOComply is SOC 2 Type II certified and GDPR ready. All data is encrypted at rest (AES-256) and in transit (TLS 1.3). We operate on enterprise-grade, ISO 27001-aligned cloud infrastructure with a 99.9% uptime SLA. Full details are available at /security.",
   "Can I manage multiple ISO standards?":
-    "Absolutely. Our Professional and Enterprise plans support all 5 ISO standards simultaneously. ISOComply automatically identifies overlapping controls across standards so you don't duplicate work.",
+    "Absolutely — all 5 standards are available on every plan. Starter lets you run up to 2 active compliance projects in parallel; Professional and Enterprise are unlimited. ISOComply automatically identifies overlapping controls across standards so you don't duplicate work.",
   "What does it cost?":
-    "Pricing is per-user: A$29/user/month for Starter, A$49/user/month for Professional, and A$79/user/month for Enterprise. All plans require a minimum of 5 users. Switch to annual billing and save 20%. Visit our pricing section for full details.",
+    "Pricing is per-user: A$29/user/month for Starter (fixed 5 seats = A$145/month), A$49/user/month for Professional (min. 5, unlimited), and A$79/user/month for Enterprise (min. 5). Switch to annual billing and save 20%. Visit our pricing section for full details.",
 };
 
 const QUICK_REPLIES = Object.keys(FAQ).slice(0, 4);

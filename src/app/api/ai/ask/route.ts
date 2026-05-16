@@ -3,6 +3,9 @@ import { generateText } from "ai";
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+import { checkAiAdvisorQuota, upgradeResponse } from "@/lib/plan-limits";
+import { writeAuditLog } from "@/lib/audit";
 
 const google = createGoogleGenerativeAI({
   apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY ?? "",
@@ -21,7 +24,7 @@ const schema = z.object({
 
 export async function POST(req: Request) {
   const session = await auth();
-  if (!session?.user) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -29,6 +32,23 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { error: "AI not configured" },
       { status: 503 }
+    );
+  }
+
+  // Look up the user's org and gate against the monthly AI Advisor quota.
+  // Starter: 10/mo per workspace. Pro+: unlimited.
+  if (!prisma) {
+    return NextResponse.json({ error: "Database not available" }, { status: 503 });
+  }
+  const membership = await prisma.orgMember.findFirst({ where: { userId: session.user.id } });
+  if (!membership) {
+    return NextResponse.json({ error: "No organisation found" }, { status: 400 });
+  }
+  const quota = await checkAiAdvisorQuota(membership.orgId);
+  if (!quota.allowed) {
+    return NextResponse.json(
+      upgradeResponse("AI Compliance Advisor queries this month", quota.used, quota.max, quota.plan),
+      { status: 402 },
     );
   }
 
@@ -67,6 +87,15 @@ Guidance: ${controlGuidance}`
       system: systemPrompt,
       prompt: question,
       maxOutputTokens: 600,
+    });
+
+    // Log the usage event — checkAiAdvisorQuota counts these to enforce the monthly cap.
+    await writeAuditLog({
+      orgId: membership.orgId,
+      userId: session.user.id,
+      userName: session.user.name ?? session.user.email ?? "Unknown",
+      action: "ai.advisor_query",
+      meta: { standardCode, controlRef },
     });
 
     return NextResponse.json({ answer: text });

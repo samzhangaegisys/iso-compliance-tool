@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { writeAuditLog } from "@/lib/audit";
 import { sendTeamInviteEmail } from "@/lib/email";
+import { checkUserLimit, upgradeResponse } from "@/lib/plan-limits";
 
 const InviteSchema = z.object({
   email:     z.string().email().max(254),
@@ -22,6 +23,15 @@ export async function POST(req: Request) {
     include: { organisation: true },
   });
   if (!membership) return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+
+  // Enforce plan seat cap (Starter: 5 fixed; Pro+: unlimited).
+  const seatLimit = await checkUserLimit(membership.orgId);
+  if (!seatLimit.allowed) {
+    return NextResponse.json(
+      upgradeResponse("Team members", seatLimit.used, seatLimit.max, seatLimit.plan),
+      { status: 402 },
+    );
+  }
 
   const parsed = InviteSchema.safeParse(await req.json());
   if (!parsed.success) {

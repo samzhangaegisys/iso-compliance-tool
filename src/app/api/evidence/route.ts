@@ -12,6 +12,7 @@ const CreateEvidenceSchema = z.object({
   fileType:       z.string().max(100).optional(),
   fileSize:       z.number().int().positive().max(100 * 1024 * 1024).optional(), // 100 MB max
   classification: z.enum(["PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED"]).optional().default("INTERNAL"),
+  expiresAt:      z.string().datetime().optional(),
 });
 
 export async function GET() {
@@ -52,6 +53,7 @@ export async function GET() {
       uploadedBy: e.uploadedBy,
       classification: e.classification,
       createdAt: e.createdAt.toISOString(),
+      expiresAt: e.expiresAt?.toISOString() ?? null,
       controlRef: e.projectControl.control.controlRef,
       controlTitle: e.projectControl.control.title,
       standard: e.projectControl.control.clause.standard.code,
@@ -74,7 +76,7 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input." }, { status: 400 });
   }
-  const { projectId, controlRef, name, description, fileType, fileSize, classification } = parsed.data;
+  const { projectId, controlRef, name, description, fileType, fileSize, classification, expiresAt } = parsed.data;
 
   const projectControl = await prisma.projectControl.findFirst({
     where: {
@@ -96,6 +98,7 @@ export async function POST(req: Request) {
       fileSize,
       uploadedBy: session.user.name ?? session.user.email ?? "Unknown",
       classification,
+      expiresAt: expiresAt ? new Date(expiresAt) : null,
     },
   });
 
