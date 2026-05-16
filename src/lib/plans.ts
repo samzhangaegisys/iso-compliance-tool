@@ -51,6 +51,7 @@ export const PLANS: PlanDef[] = [
       "Everything in Starter, plus:",
       "Unlimited active compliance projects",
       "Unlimited AI Compliance Advisor queries",
+      "Risk register (ISO 27001 §6.1.2 compliant)",
       "Multi-threshold expiry alerts with escalation",
       "Branded / white-label audit reports",
       "Unlimited users (min. 5)",
@@ -69,6 +70,7 @@ export const PLANS: PlanDef[] = [
     description: "For large organisations and consulting firms",
     features: [
       "Everything in Professional, plus:",
+      "Full audit log viewer with CSV export",
       "SSO / SAML",
       "Custom integrations & API",
       "Automated onboarding portal",

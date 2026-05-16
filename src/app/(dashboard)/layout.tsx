@@ -27,6 +27,8 @@ import {
   KeyRound,
   UserCog,
   CreditCard,
+  ShieldAlert,
+  ScrollText,
 } from "lucide-react";
 import {
   Sidebar,
@@ -58,6 +60,7 @@ const navItems = [
       { label: "Projects", href: "/projects", icon: FolderOpen },
       { label: "Tasks", href: "/tasks", icon: ClipboardList },
       { label: "Evidence", href: "/evidence", icon: FileText },
+      { label: "Risks", href: "/risks", icon: ShieldAlert },
       { label: "Gap Analysis", href: "/reports", icon: BarChart3 },
     ],
   },
@@ -65,6 +68,7 @@ const navItems = [
     group: "Organisation",
     items: [
       { label: "Team", href: "/team", icon: Users },
+      { label: "Audit Log", href: "/audit-log", icon: ScrollText },
       { label: "Settings", href: "/settings", icon: Settings },
     ],
   },
