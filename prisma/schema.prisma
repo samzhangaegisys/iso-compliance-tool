@@ -21,6 +21,7 @@ model Organisation {
   projects             ComplianceProject[]
   members              OrgMember[]
   subscriptions        Subscription[]
+  risks                Risk[]
 }
 
 model OrgMember {
@@ -161,6 +162,7 @@ model ComplianceProject {
   organisation Organisation     @relation(fields: [orgId], references: [id], onDelete: Cascade)
   standard     IsoStandard      @relation(fields: [standardId], references: [id])
   controls     ProjectControl[]
+  risks        Risk[]
 
   @@index([orgId])
 }
@@ -317,4 +319,55 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   @@index([orgId, createdAt(sort: Desc)])
+  @@index([orgId, action])
+}
+
+model Risk {
+  id              String       @id @default(cuid())
+  orgId           String
+  projectId       String?      // optional — risks can be project-scoped or org-wide
+  title           String
+  description     String?
+  category        RiskCategory @default(OPERATIONAL)
+  likelihood      Int          // 1–5 (rare → almost certain)
+  impact          Int          // 1–5 (negligible → severe)
+  // inherentScore = likelihood * impact, kept as a computed column in app code for now
+  treatment       RiskTreatment @default(MITIGATE)
+  treatmentNotes  String?
+  ownerId         String?      // userId of risk owner
+  ownerName       String?      // denormalised for display
+  reviewDate      DateTime?    // next scheduled review
+  status          RiskStatus    @default(OPEN)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  organisation    Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  project         ComplianceProject? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([projectId])
+  @@index([orgId, status])
+}
+
+enum RiskCategory {
+  OPERATIONAL
+  SECURITY
+  COMPLIANCE
+  FINANCIAL
+  REPUTATIONAL
+  STRATEGIC
+  TECHNOLOGY
+}
+
+enum RiskTreatment {
+  AVOID
+  MITIGATE
+  TRANSFER
+  ACCEPT
+}
+
+enum RiskStatus {
+  OPEN
+  IN_TREATMENT
+  CLOSED
+  ACCEPTED
 }
