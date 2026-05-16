@@ -1,24 +1,18 @@
 import { NextResponse } from "next/server";
 import { verifySync } from "otplib";
 import { getMfaRecord, enableMfa } from "@/lib/mfa-store";
-import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 
 export async function POST(req: Request) {
-  if (!prisma) {
-    return NextResponse.json({ error: "Database not available" }, { status: 503 });
+  const session = await auth();
+  if (!session?.user?.id || !session.user.email) {
+    return NextResponse.json({ error: "You need to be signed in to confirm MFA." }, { status: 401 });
   }
+  const email = session.user.email;
 
-  const { userId, email, regToken, code } = await req.json();
-  if (!userId || !email || !regToken || !code) {
-    return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
-  }
-
-  // Validate registration token
-  const regRecord = await prisma.verificationToken.findFirst({
-    where: { identifier: `reg:${userId}`, token: regToken, expires: { gt: new Date() } },
-  });
-  if (!regRecord) {
-    return NextResponse.json({ error: "Invalid or expired session." }, { status: 401 });
+  const { code } = await req.json();
+  if (!code) {
+    return NextResponse.json({ error: "Missing authenticator code." }, { status: 400 });
   }
 
   const record = await getMfaRecord(email);

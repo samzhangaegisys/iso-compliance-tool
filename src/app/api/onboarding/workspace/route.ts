@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 
 function toSlug(name: string): string {
   return name
@@ -25,20 +26,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Database not available" }, { status: 503 });
   }
 
-  const { userId, regToken, orgName, plan } = await req.json();
-  if (!userId || !regToken || !orgName) {
-    return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "You need to be signed in to create a workspace." }, { status: 401 });
+  }
+  const userId = session.user.id;
+
+  const { orgName, plan } = await req.json();
+  if (!orgName) {
+    return NextResponse.json({ error: "Missing organisation name." }, { status: 400 });
   }
 
-  // Validate registration token
-  const regRecord = await prisma.verificationToken.findFirst({
-    where: { identifier: `reg:${userId}`, token: regToken, expires: { gt: new Date() } },
-  });
-  if (!regRecord) {
-    return NextResponse.json({ error: "Invalid or expired session." }, { status: 401 });
-  }
-
-  // Verify user exists and email is verified
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {
     return NextResponse.json({ error: "User not found." }, { status: 404 });
@@ -47,7 +45,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Email not verified." }, { status: 403 });
   }
 
-  // Create organisation
   const baseSlug = toSlug(orgName) || "workspace";
   const slug = await uniqueSlug(baseSlug);
 
@@ -61,12 +58,11 @@ export async function POST(req: Request) {
     },
   });
 
-  // Create subscription
   const planEnum = plan?.toUpperCase?.() === "PROFESSIONAL"
     ? "PROFESSIONAL"
     : plan?.toUpperCase?.() === "ENTERPRISE"
       ? "ENTERPRISE"
-      : "FREE";
+      : "STARTER";
 
   await prisma.subscription.create({
     data: {
@@ -76,13 +72,12 @@ export async function POST(req: Request) {
     },
   });
 
-  // Mark onboarding complete
   await prisma.user.update({
     where: { id: userId },
     data: { onboardingDone: true },
   });
 
-  // Clean up registration token
+  // Clean up the registration token used pre-signin (best effort — it may have already expired).
   await prisma.verificationToken.deleteMany({
     where: { identifier: `reg:${userId}` },
   });

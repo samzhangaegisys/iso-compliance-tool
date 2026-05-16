@@ -139,26 +139,15 @@ function RegisterForm() {
 
   const set = (patch: Partial<RegState>) => setState((s) => ({ ...s, ...patch }));
 
-  // Resume after Stripe redirect. We saved the in-memory registration state to
-  // sessionStorage right before redirecting to Stripe Checkout, so we can rehydrate
-  // email/password on return. The URL carries userId+regToken+step=mfa so a returning
-  // user with cleared sessionStorage (e.g., reopened tab) still lands on the right step.
+  // Resume after Stripe redirect. The user is already signed in (we did that right
+  // after verify-email), so the NextAuth session cookie survives the Stripe round-trip
+  // and the MFA / workspace endpoints can identify the user via auth() on the server.
+  // No need to rehydrate userId/regToken/password from sessionStorage — we just need
+  // to know which step to land on.
   useEffect(() => {
     const urlStep = searchParams.get("step");
-    const urlUserId = searchParams.get("userId");
-    const urlRegToken = searchParams.get("regToken");
-    if (urlStep === "mfa" && urlUserId && urlRegToken) {
-      let restored: Partial<RegState> = {};
-      try {
-        const raw = sessionStorage.getItem("isocomply_reg_state");
-        if (raw) restored = JSON.parse(raw) as Partial<RegState>;
-      } catch {}
-      set({
-        ...restored,
-        userId: urlUserId,
-        regToken: urlRegToken,
-        paid: true,
-      });
+    if (urlStep === "mfa") {
+      set({ paid: true });
       setStep(5);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -173,17 +162,15 @@ function RegisterForm() {
     return () => clearTimeout(t);
   }, [resendCooldown]);
 
-  // MFA QR fetch when entering step 5. Wait until state.email is also present —
-  // after a Stripe redirect, sessionStorage rehydration and the mfa-init effect
-  // can otherwise race, firing the fetch with email="" and getting a 400.
+  // MFA QR fetch when entering step 5. The endpoint reads the user from the NextAuth
+  // session cookie set during verify-email, so no per-request token is needed.
   const mfaFetched = useRef(false);
   useEffect(() => {
     if (step !== 5 || mfaFetched.current) return;
-    if (!state.userId || !state.regToken || !state.email) return;
     mfaFetched.current = true;
     (async () => {
       try {
-        const r = await fetch(`/api/onboarding/mfa-init?userId=${state.userId}&regToken=${state.regToken}&email=${encodeURIComponent(state.email)}`);
+        const r = await fetch("/api/onboarding/mfa-init");
         const d = await r.json();
         if (r.ok && d.qrDataUrl) {
           set({ mfaQr: d.qrDataUrl, mfaSecret: d.secret });
@@ -196,8 +183,7 @@ function RegisterForm() {
         mfaFetched.current = false;
       }
     })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, state.userId, state.regToken, state.email]);
+  }, [step]);
 
   const activePlan = PLANS.find((p) => p.id === state.plan)!;
   // All plans are paid (Starter $29, Pro $49, Enterprise $79) — every signup goes through Stripe Checkout.
@@ -247,15 +233,11 @@ function RegisterForm() {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: state.plan, email: state.email, userId: state.userId, regToken: state.regToken }),
+        body: JSON.stringify({ plan: state.plan }),
       });
       const data = await res.json();
       if (data.devMode) { set({ paid: true }); setStep(5); return; }
       if (!res.ok || !data.url) { setError(data.error ?? "Payment setup failed."); return; }
-      // Persist the in-memory state so we can rehydrate email/password/devOtp after
-      // Stripe's redirect reloads the page. sessionStorage is per-tab and cleared on
-      // close, which scopes the brief password exposure appropriately.
-      try { sessionStorage.setItem("isocomply_reg_state", JSON.stringify(state)); } catch {}
       window.location.href = data.url;
     } catch { setError("Something went wrong. Please try again."); }
     finally { setLoading(false); }
@@ -278,6 +260,19 @@ function RegisterForm() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Verification failed. Check your code and try again."); return; }
+      // Email is verified — establish a NextAuth session so the rest of the flow
+      // (Stripe, MFA setup, workspace creation) doesn't need a fragile regToken in
+      // the URL. The session cookie survives the Stripe redirect.
+      await signOut({ redirect: false });
+      const signin = await signIn("credentials", {
+        email: state.email,
+        password: state.password,
+        redirect: false,
+      });
+      if (signin?.error) {
+        setError("Verified but couldn't sign in automatically. Please use the Sign in page.");
+        return;
+      }
       setStep(4);
     } catch { setError("Something went wrong. Please try again."); }
     finally { setLoading(false); }
@@ -310,7 +305,7 @@ function RegisterForm() {
       const res = await fetch("/api/onboarding/mfa-confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: state.userId, email: state.email, regToken: state.regToken, code: state.mfaCode }),
+        body: JSON.stringify({ code: state.mfaCode }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Invalid code. Please try again."); return; }
@@ -328,30 +323,13 @@ function RegisterForm() {
       const res = await fetch("/api/onboarding/workspace", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: state.userId, regToken: state.regToken, orgName: state.orgName.trim(), plan: state.plan }),
+        body: JSON.stringify({ orgName: state.orgName.trim(), plan: state.plan }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Failed to create workspace. Please try again."); return; }
-      // Registration flow is complete — clear the persisted state so it doesn't leak
-      // into any future tab on this origin.
-      try { sessionStorage.removeItem("isocomply_reg_state"); } catch {}
-      // Sign out any existing session (e.g. master admin), then sign in as the new user.
-      // The user just enabled MFA in step 5, so we must pass the TOTP code along with
-      // credentials — `state.mfaCode` is the code they just entered to confirm MFA setup
-      // and is still inside the 30s window when they finish workspace setup quickly.
-      await signOut({ redirect: false });
-      const result = await signIn("credentials", {
-        email: state.email,
-        password: state.password,
-        totpCode: state.mfaEnabled ? state.mfaCode : undefined,
-        redirect: false,
-      });
-      if (result?.ok) {
-        localStorage.setItem("isocomply_new_user", "1");
-        router.push("/dashboard");
-      } else {
-        router.push(`/login?registered=1&email=${encodeURIComponent(state.email)}`);
-      }
+      // Already signed in (since the verify-email step) — straight to dashboard.
+      localStorage.setItem("isocomply_new_user", "1");
+      router.push("/dashboard");
     } catch { setError("Something went wrong. Please try again."); }
     finally { setLoading(false); }
   }
