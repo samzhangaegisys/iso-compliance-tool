@@ -106,10 +106,24 @@ export async function POST(req: Request) {
     },
   });
 
-  await sendVerificationEmail(email, otp, name).catch(() => {});
+  let otpSent = false;
+  try {
+    await sendVerificationEmail(email, otp, name);
+    otpSent = true;
+  } catch (err) {
+    console.error(`[ISOComply] Failed to send verification email to ${email}:`, err);
+  }
   if (process.env.NODE_ENV === "development") {
     console.log(`\n[ISOComply] Email verification OTP for ${email}: ${otp}\n`);
   }
 
-  return NextResponse.json({ userId: user.id, regToken, otpSent: true });
+  // Outside real production (local dev + Vercel preview/staging), return the OTP
+  // so the verification flow is testable without a verified Resend sending domain.
+  const exposeOtp = process.env.VERCEL_ENV !== "production";
+  return NextResponse.json({
+    userId: user.id,
+    regToken,
+    otpSent,
+    ...(exposeOtp ? { devOtp: otp } : {}),
+  });
 }
