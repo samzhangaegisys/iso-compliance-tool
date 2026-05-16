@@ -25,6 +25,7 @@ model Organisation {
   vendors              Vendor[]
   policies             Policy[]
   controlMappings      ControlMapping[]
+  customFrameworks     IsoStandard[]
 }
 
 model OrgMember {
@@ -113,13 +114,19 @@ model VerificationToken {
 
 model IsoStandard {
   id          String              @id @default(cuid())
-  code        String              @unique
+  code        String              @unique         // Globally unique. Custom frameworks get a cuid-based code so they never collide with the ISO catalog.
   name        String
   description String?
   version     String
+  // orgId = null → built-in catalog entry (ISO 27001/9001/14001/45001/42001).
+  // orgId set  → custom Enterprise-authored framework, scoped to that org.
+  orgId       String?
   createdAt   DateTime            @default(now())
   projects    ComplianceProject[]
   clauses     IsoClause[]
+  organisation Organisation?      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
 }
 
 model IsoClause {

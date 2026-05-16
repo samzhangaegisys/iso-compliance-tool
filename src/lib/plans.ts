@@ -75,6 +75,7 @@ export const PLANS: PlanDef[] = [
       "Everything in Professional, plus:",
       "Full audit log viewer with CSV export",
       "Unlimited vendors + unlimited policies",
+      "Custom compliance frameworks (author your own)",
       "SSO / SAML",
       "Custom integrations & API",
       "Automated onboarding portal",
