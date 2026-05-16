@@ -29,6 +29,8 @@ import {
   CreditCard,
   ShieldAlert,
   ScrollText,
+  Building,
+  ScrollIcon,
 } from "lucide-react";
 import {
   Sidebar,
@@ -61,6 +63,8 @@ const navItems = [
       { label: "Tasks", href: "/tasks", icon: ClipboardList },
       { label: "Evidence", href: "/evidence", icon: FileText },
       { label: "Risks", href: "/risks", icon: ShieldAlert },
+      { label: "Vendors", href: "/vendors", icon: Building },
+      { label: "Policies", href: "/policies", icon: ScrollIcon },
       { label: "Gap Analysis", href: "/reports", icon: BarChart3 },
     ],
   },
@@ -68,7 +72,7 @@ const navItems = [
     group: "Organisation",
     items: [
       { label: "Team", href: "/team", icon: Users },
-      { label: "Audit Log", href: "/audit-log", icon: ScrollText },
+      { label: "Audit Log", href: "/audit-log", icon: ScrollText, requiresPlan: "enterprise" as const },
       { label: "Settings", href: "/settings", icon: Settings },
     ],
   },
@@ -106,6 +110,8 @@ function OrgName() {
 
 function AppSidebar() {
   const pathname = usePathname();
+  const org = useOrg();
+  const plan = org?.plan ?? "starter";
 
   return (
     <Sidebar>
@@ -127,7 +133,9 @@ function AppSidebar() {
             <SidebarGroupLabel>{group.group}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {group.items.map((item) => {
+                {group.items
+                  .filter((item) => !("requiresPlan" in item) || !item.requiresPlan || plan === item.requiresPlan)
+                  .map((item) => {
                   const isActive =
                     item.href === "/dashboard"
                       ? pathname === "/dashboard"
