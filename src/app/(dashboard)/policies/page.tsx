@@ -233,7 +233,9 @@ function PolicyModal({ existing, onClose, onSaved }: {
   const [saving, setSaving]               = useState(false);
   const [error, setError]                 = useState<string | null>(null);
 
-  // Load existing content when editing.
+  // Load existing content when editing. Run once per `existing` instance — switching
+  // the category dropdown must NOT overwrite the user's typed content; for that they
+  // press the explicit "Apply template" button below.
   useEffect(() => {
     if (!existing) {
       setContent(TEMPLATES[category] ?? "");
@@ -246,7 +248,8 @@ function PolicyModal({ existing, onClose, onSaved }: {
         if (latest) setContent(latest.content);
       })
       .catch(() => {});
-  }, [existing, category]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [existing?.id]);
 
   function applyTemplate() {
     setContent(TEMPLATES[category] ?? "");
@@ -291,7 +294,10 @@ function PolicyModal({ existing, onClose, onSaved }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
       <div className="bg-background border border-border rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
         <div className="px-5 py-3 border-b border-border flex items-center justify-between">
           <h2 className="font-semibold text-foreground">

@@ -117,7 +117,11 @@ function MultiTag({ label, values, options, onChange }: {
       <div className="flex gap-1.5">
         <Input value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="Add custom…" className="h-7 text-xs" />
         <Button type="button" variant="outline" size="sm"
-          onClick={() => { if (custom.trim()) { onChange([...values, custom.trim()]); setCustom(""); } }}>
+          onClick={() => {
+            const t = custom.trim();
+            if (t && !values.includes(t)) onChange([...values, t]);
+            setCustom("");
+          }}>
           Add
         </Button>
       </div>
@@ -182,7 +186,10 @@ function VendorModal({ existing, onClose, onSaved }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
       <div className="bg-background border border-border rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         <div className="px-5 py-3 border-b border-border flex items-center justify-between">
           <h2 className="font-semibold text-foreground">{existing ? "Edit vendor" : "New vendor"}</h2>
