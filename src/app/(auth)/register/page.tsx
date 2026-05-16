@@ -261,10 +261,21 @@ function RegisterForm() {
 
   async function handleResendOtp() {
     setOtpResent(false); setError(null);
+    if (!state.userId || !state.regToken || !state.email) {
+      setError("Your registration session has expired. Please refresh and start again.");
+      return;
+    }
     try {
-      await fetch("/api/auth/register", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: state.name, email: state.email, password: state.password, phone: state.phone, consentTerms: true, consentMarketing: state.consentMarketing, _resend: true }) });
+      const res = await fetch("/api/auth/resend-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: state.userId, regToken: state.regToken, email: state.email }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error ?? "Couldn't resend code. Please try again."); return; }
+      if (data.devOtp) set({ devOtp: data.devOtp, otp: data.devOtp });
       setOtpResent(true);
-    } catch {}
+    } catch { setError("Something went wrong. Please try again."); }
   }
 
   async function handleMfaSubmit(e: React.FormEvent) {
