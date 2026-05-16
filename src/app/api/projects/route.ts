@@ -10,8 +10,10 @@ const CreateProjectSchema = z.object({
   standardCode: z.string().min(1).max(50),
   name:         z.string().min(1).max(255),
   description:  z.string().max(1000).nullable().optional(),
-  targetDate:   z.string().datetime().nullable().optional(),
-  startDate:    z.string().datetime().nullable().optional(),
+  // Frontend uses <input type="date"> which sends YYYY-MM-DD, not full ISO.
+  // Backend wraps these in `new Date(...)` so either format works.
+  targetDate:   z.string().nullable().optional(),
+  startDate:    z.string().nullable().optional(),
   leadUserId:   z.string().cuid().nullable().optional(),
 });
 
