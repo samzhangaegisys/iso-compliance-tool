@@ -29,7 +29,7 @@ export function PricingSection() {
             Pay only for who uses it. Minimum 5 users on all plans.
           </p>
           <p className="text-sm text-slate-400 mb-8">
-            Start with the free Starter plan — no credit card required
+            Plans start at A$29/user/month — annual billing saves 20%
           </p>
 
           {/* Billing toggle */}

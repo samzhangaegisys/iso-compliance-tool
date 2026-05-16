@@ -12,8 +12,8 @@ type Message = {
 const FAQ: Record<string, string> = {
   "What ISO standards do you support?":
     "ISOComply supports ISO 27001 (Information Security), ISO 9001 (Quality), ISO 14001 (Environmental), ISO 45001 (Health & Safety), and ISO 42001 (AI Management). You can manage multiple standards simultaneously and spot shared controls.",
-  "Is there a free plan?":
-    "Yes! Our Starter plan is free forever — no credit card required. It includes 1 ISO standard, up to 10 users, and full access to gap analysis and the evidence vault. Upgrade to Professional or Enterprise any time from your dashboard.",
+  "What's the cheapest plan?":
+    "Our Starter plan is A$29/user/month with a 5-user minimum, billed monthly. It includes 1 ISO standard of your choice, AI-guided gap analysis, the evidence vault, PDF audit reports, and email support. Switch to annual billing and save 20%. Upgrade to Professional or Enterprise any time from your dashboard.",
   "How long does setup take?":
     "Most teams are up and running within an hour. You select your ISO standards, import your existing controls (or start fresh), and the gap analysis engine generates your first readiness report immediately. No lengthy onboarding or professional services needed.",
   "How is my data secured?":
@@ -21,7 +21,7 @@ const FAQ: Record<string, string> = {
   "Can I manage multiple ISO standards?":
     "Absolutely. Our Professional and Enterprise plans support all 5 ISO standards simultaneously. ISOComply automatically identifies overlapping controls across standards so you don't duplicate work.",
   "What does it cost?":
-    "Pricing starts at A$0 (Free forever), A$249/month for Professional, or custom pricing for Enterprise. Switch to annual billing and save 20%. Visit our pricing section for full details.",
+    "Pricing is per-user: A$29/user/month for Starter, A$49/user/month for Professional, and A$79/user/month for Enterprise. All plans require a minimum of 5 users. Switch to annual billing and save 20%. Visit our pricing section for full details.",
 };
 
 const QUICK_REPLIES = Object.keys(FAQ).slice(0, 4);

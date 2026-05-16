@@ -154,7 +154,7 @@ export default function ApiDocsPage() {
                   <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Rate Limits</p>
                   <div className="space-y-1.5 text-xs">
                     <div className="flex justify-between text-slate-400">
-                      <span>Free plan</span>
+                      <span>Starter</span>
                       <span className="text-slate-300">100 req/hour</span>
                     </div>
                     <div className="flex justify-between text-slate-400">
