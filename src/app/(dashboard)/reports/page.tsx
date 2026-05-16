@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useOrg } from "@/lib/org-context";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -778,12 +779,28 @@ function AssessmentView({ std, assessment, onChange, onAskAI, onComplete }: {
 
 // ── Report view ───────────────────────────────────────────────────────────────
 
+function hexToRgb(hex: string | null | undefined): [number, number, number] {
+  const fallback: [number, number, number] = [37, 99, 235]; // #2563eb
+  if (!hex) return fallback;
+  const m = hex.match(/^#?([0-9a-f]{6})$/i);
+  if (!m) return fallback;
+  const v = m[1];
+  return [parseInt(v.slice(0, 2), 16), parseInt(v.slice(2, 4), 16), parseInt(v.slice(4, 6), 16)];
+}
+
 function ReportView({ std, assessment, onCreateTasks, projectName }: {
   std: Standard;
   assessment: Assessment;
   onCreateTasks: (gaps: Control[]) => void;
   projectName?: string;
 }) {
+  const org = useOrg();
+  const isPro = org?.plan === "professional" || org?.plan === "enterprise";
+  const brand = {
+    primary: isPro ? hexToRgb(org?.brandingPrimaryColor) : hexToRgb(null),
+    displayName: (isPro ? (org?.brandingDisplayName ?? org?.name) : org?.name) ?? "ISOComply",
+    logoUrl: isPro ? org?.logoUrl ?? null : null,
+  };
   const [filter, setFilter] = useState<"all" | Risk>("all");
   const [exporting, setExporting] = useState(false);
   const controls = allControls(std);
@@ -833,8 +850,8 @@ function ReportView({ std, assessment, onCreateTasks, projectName }: {
       const now = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
       const W = 210;
 
-      // Header bar
-      doc.setFillColor(37, 99, 235);
+      // Header bar — uses Pro+ branding colour and display name if configured
+      doc.setFillColor(brand.primary[0], brand.primary[1], brand.primary[2]);
       doc.rect(0, 0, W, 28, "F");
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(16);
@@ -842,7 +859,7 @@ function ReportView({ std, assessment, onCreateTasks, projectName }: {
       doc.text("Gap Analysis Report", 14, 12);
       doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
-      doc.text(`${std.name}${projectName ? "  ·  " + projectName : ""}`, 14, 19);
+      doc.text(`${brand.displayName}  ·  ${std.name}${projectName ? "  ·  " + projectName : ""}`, 14, 19);
       doc.text(`Generated ${now}`, 14, 25);
 
       // Score summary row
@@ -860,7 +877,7 @@ function ReportView({ std, assessment, onCreateTasks, projectName }: {
         const x = 14 + i * boxW;
         doc.setFillColor(248, 250, 252);
         doc.roundedRect(x, summaryY, boxW - 2, 16, 2, 2, "F");
-        doc.setTextColor(37, 99, 235);
+        doc.setTextColor(brand.primary[0], brand.primary[1], brand.primary[2]);
         doc.setFontSize(13);
         doc.setFont("helvetica", "bold");
         doc.text(col.value, x + (boxW - 2) / 2, summaryY + 8, { align: "center" });
@@ -881,7 +898,7 @@ function ReportView({ std, assessment, onCreateTasks, projectName }: {
         head: [["Clause", "Title", "Score"]],
         body: clauseBreakdown.map((cl) => [cl.number, cl.title, `${cl.score}%`]),
         styles: { fontSize: 8, cellPadding: 2.5 },
-        headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: "bold" },
+        headStyles: { fillColor: brand.primary, textColor: 255, fontStyle: "bold" },
         columnStyles: { 0: { cellWidth: 18 }, 2: { cellWidth: 16, halign: "right" } },
         margin: { left: 14, right: 14 },
       });
@@ -910,7 +927,7 @@ function ReportView({ std, assessment, onCreateTasks, projectName }: {
           assessment[c.ref]?.notes ?? "",
         ]),
         styles: { fontSize: 7.5, cellPadding: 2 },
-        headStyles: { fillColor: [37, 99, 235], textColor: 255, fontStyle: "bold" },
+        headStyles: { fillColor: brand.primary, textColor: 255, fontStyle: "bold" },
         columnStyles: {
           0: { cellWidth: 14 },
           2: { cellWidth: 18 },

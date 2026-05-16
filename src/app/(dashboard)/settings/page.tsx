@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import {
-  Building2, Shield, CreditCard, Check, AlertCircle, User, Lock,
+  Building2, Shield, CreditCard, Check, AlertCircle, User, Lock, Sparkles, Palette,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -245,6 +245,186 @@ function OrgTab() {
   );
 }
 
+// ── Branding tab (Pro+ only) ─────────────────────────────────────────────────
+
+function BrandingTab() {
+  const org = useOrg();
+  const isAdmin = org?.role === "OWNER" || org?.role === "ADMIN";
+  const isPro = org?.plan === "professional" || org?.plan === "enterprise";
+
+  const [logoUrl, setLogoUrl] = useState("");
+  const [primaryColor, setPrimaryColor] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [thresholdsStr, setThresholdsStr] = useState("");
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!org) return;
+    setLogoUrl(org.logoUrl ?? "");
+    setPrimaryColor(org.brandingPrimaryColor ?? "");
+    setDisplayName(org.brandingDisplayName ?? "");
+    setThresholdsStr((org.expiryThresholds ?? [30]).join(", "));
+  }, [org]);
+
+  async function handleSave() {
+    setError(null);
+    if (primaryColor && !/^#[0-9a-fA-F]{6}$/.test(primaryColor)) {
+      setError("Primary colour must be a 6-digit hex (e.g. #2563eb)");
+      return;
+    }
+    if (logoUrl && !/^https?:\/\//.test(logoUrl)) {
+      setError("Logo URL must start with http:// or https://");
+      return;
+    }
+    let thresholds: number[] | undefined;
+    if (thresholdsStr.trim()) {
+      const parts = thresholdsStr.split(",").map((s) => Number.parseInt(s.trim(), 10));
+      if (parts.some((n) => !Number.isFinite(n) || n < 1 || n > 365)) {
+        setError("Expiry thresholds must be integers 1–365 (days before)");
+        return;
+      }
+      thresholds = Array.from(new Set(parts)).sort((a, b) => b - a);
+    }
+    setSaveStatus("saving");
+    try {
+      const res = await fetch("/api/org/branding", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          logoUrl: logoUrl || null,
+          brandingPrimaryColor: primaryColor || null,
+          brandingDisplayName: displayName || null,
+          expiryThresholds: thresholds,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Save failed");
+        setSaveStatus("error");
+        setTimeout(() => setSaveStatus("idle"), 3000);
+        return;
+      }
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 3000);
+    } catch {
+      setError("Network error");
+      setSaveStatus("error");
+      setTimeout(() => setSaveStatus("idle"), 3000);
+    }
+  }
+
+  if (!isAdmin) {
+    return (
+      <Card>
+        <CardContent className="py-10 text-center text-muted-foreground">
+          <Palette className="size-8 mx-auto mb-2 opacity-30" />
+          <p className="text-sm font-medium">Branding is managed by Owners and Admins.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+  if (!isPro) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Sparkles className="size-4 text-blue-500" /> Branded reports
+          </CardTitle>
+          <CardDescription>Add your logo, colour scheme, and custom display name to audit reports.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-xl border border-blue-200 bg-blue-50 p-5 text-sm space-y-2">
+            <p className="font-semibold text-blue-900">Available on Professional and Enterprise</p>
+            <p className="text-blue-700">
+              Upgrade to brand your audit reports with your organisation&apos;s logo and colours,
+              and configure multi-threshold evidence expiry alerts.
+            </p>
+            <Button
+              size="sm"
+              className="mt-3 bg-blue-600 hover:bg-blue-700 text-white"
+              onClick={() => (window.location.href = "/settings?tab=billing")}
+            >
+              View upgrade options
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <Palette className="size-4" /> Branding & alerts
+        </CardTitle>
+        <CardDescription>Customise how your organisation appears on audit reports and configure evidence expiry alerts.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="space-y-1.5">
+          <Label>Logo URL</Label>
+          <Input
+            value={logoUrl}
+            onChange={(e) => setLogoUrl(e.target.value)}
+            placeholder="https://example.com/logo.png"
+          />
+          <p className="text-xs text-muted-foreground">Publicly accessible PNG/SVG. We don&apos;t host the logo — paste a URL to where it&apos;s already hosted.</p>
+        </div>
+        <div className="space-y-1.5">
+          <Label>Primary colour</Label>
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={primaryColor || "#2563eb"}
+              onChange={(e) => setPrimaryColor(e.target.value)}
+              className="h-9 w-12 rounded border border-border cursor-pointer"
+            />
+            <Input
+              value={primaryColor}
+              onChange={(e) => setPrimaryColor(e.target.value)}
+              placeholder="#2563eb"
+              className="flex-1"
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">Used for report headers, dividers, and section accents.</p>
+        </div>
+        <div className="space-y-1.5">
+          <Label>Display name on reports</Label>
+          <Input
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            placeholder={org?.name ?? "Your organisation"}
+          />
+          <p className="text-xs text-muted-foreground">Overrides the workspace name on PDF covers. Leave blank to use {org?.name ?? "the workspace name"}.</p>
+        </div>
+        <Separator />
+        <div className="space-y-1.5">
+          <Label>Evidence expiry alert thresholds (days before)</Label>
+          <Input
+            value={thresholdsStr}
+            onChange={(e) => setThresholdsStr(e.target.value)}
+            placeholder="60, 30, 7"
+          />
+          <p className="text-xs text-muted-foreground">Comma-separated days before expiry to surface alerts. Pro: up to 5 entries; Enterprise: up to 10.</p>
+        </div>
+        {error && (
+          <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700 flex items-center gap-2">
+            <AlertCircle className="size-3.5" /> {error}
+          </div>
+        )}
+        <div className="flex items-center gap-3">
+          <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white"
+            onClick={handleSave} disabled={saveStatus === "saving"}>
+            Save branding
+          </Button>
+          <SaveFeedback status={saveStatus} />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Billing tab ───────────────────────────────────────────────────────────────
 
 const PLAN_DETAILS: Record<string, { label: string; description: string; price: string }> = {
@@ -394,9 +574,10 @@ function BillingTab() {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 const TABS = [
-  { key: "profile", label: "My Profile",    icon: User        },
-  { key: "org",     label: "Organisation",  icon: Building2   },
-  { key: "billing", label: "Billing",       icon: CreditCard  },
+  { key: "profile",  label: "My Profile",    icon: User        },
+  { key: "org",      label: "Organisation",  icon: Building2   },
+  { key: "branding", label: "Branding",      icon: Palette     },
+  { key: "billing",  label: "Billing",       icon: CreditCard  },
 ] as const;
 
 type Tab = typeof TABS[number]["key"];
@@ -432,9 +613,10 @@ function SettingsContent() {
         ))}
       </div>
 
-      {tab === "profile" && <ProfileTab />}
-      {tab === "org"     && <OrgTab />}
-      {tab === "billing" && <BillingTab />}
+      {tab === "profile"  && <ProfileTab />}
+      {tab === "org"      && <OrgTab />}
+      {tab === "branding" && <BrandingTab />}
+      {tab === "billing"  && <BillingTab />}
     </div>
   );
 }
