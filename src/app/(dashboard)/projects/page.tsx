@@ -424,11 +424,11 @@ function NewProjectModal({ onClose, onAdd }: {
         {step === 1 && (
           <div className="p-6 overflow-y-auto max-h-[65vh]">
             {MOCK_PLAN === "starter" && (
-              <div className="mb-4 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 flex items-start gap-2">
-                <AlertTriangle className="size-3.5 text-amber-600 shrink-0 mt-0.5" />
-                <p className="text-xs text-amber-700">
-                  <strong>Starter plan:</strong> All projects are for your chosen standard (ISO 27001). You can create as many projects as you need — certifications, surveillance audits, renewals.{" "}
-                  <Link href="/#pricing" className="underline">Upgrade</Link> to unlock all 5 standards.
+              <div className="mb-4 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 flex items-start gap-2">
+                <AlertTriangle className="size-3.5 text-blue-600 shrink-0 mt-0.5" />
+                <p className="text-xs text-blue-700">
+                  <strong>Starter plan:</strong> All 5 ISO standards are available — choose any. You can run up to 2 active projects in parallel.{" "}
+                  <Link href="/settings?tab=billing" className="underline">Upgrade</Link> for unlimited projects.
                 </p>
               </div>
             )}
@@ -436,28 +436,21 @@ function NewProjectModal({ onClose, onAdd }: {
               {STANDARDS_CATALOGUE.map((s) => {
                 const Icon = s.icon;
                 const selected = chosen === s.code;
-                const locked = MOCK_PLAN === "starter" && s.code !== "ISO27001";
                 return (
                   <button key={s.code}
-                    onClick={() => !locked && pickStandard(s.code)}
-                    disabled={locked}
+                    onClick={() => pickStandard(s.code)}
                     className={`text-left p-4 rounded-xl border-2 transition-all ${
-                      locked
-                        ? "border-border bg-muted/30 opacity-40 cursor-not-allowed"
-                        : selected
-                          ? "border-blue-500 bg-blue-50 shadow-md"
-                          : `${s.color} hover:border-current/50 hover:shadow-sm`
+                      selected
+                        ? "border-blue-500 bg-blue-50 shadow-md"
+                        : `${s.color} hover:border-current/50 hover:shadow-sm`
                     }`}>
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <span className={`size-7 rounded-lg ${s.badge} flex items-center justify-center`}>
                           <Icon className="size-3.5 text-white" />
                         </span>
-                        {s.popular && !locked && (
+                        {s.popular && (
                           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white">Most popular</span>
-                        )}
-                        {locked && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-200 text-amber-700">Pro</span>
                         )}
                       </div>
                       {selected && <Check className="size-4 text-blue-600 shrink-0" />}
@@ -946,14 +939,14 @@ export default function ProjectsPage() {
       {showModal && <NewProjectModal onClose={() => setShowModal(false)} onAdd={addProject} />}
 
       <div className="space-y-6 pb-10">
-        {/* Starter plan banner */}
+        {/* Starter plan banner — project-count gate */}
         {MOCK_PLAN === "starter" && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 flex items-start gap-3">
             <AlertTriangle className="size-4 text-amber-600 shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-amber-800">Starter Plan · ISO 27001 only</p>
+              <p className="text-sm font-medium text-amber-800">Starter plan · up to 2 active projects</p>
               <p className="text-xs text-amber-700 mt-0.5">
-                All projects are locked to your chosen standard (ISO 27001). You can create unlimited projects for certifications, surveillance audits, and renewals. <Link href="/#pricing" className="underline hover:no-underline">Upgrade to Professional</Link> to work across all 5 ISO standards.
+                All 5 ISO standards are available. Starter is limited to 2 active compliance projects in parallel. <Link href="/settings?tab=billing" className="underline hover:no-underline">Upgrade to Professional</Link> for unlimited projects, users, and AI Advisor queries.
               </p>
             </div>
           </div>
