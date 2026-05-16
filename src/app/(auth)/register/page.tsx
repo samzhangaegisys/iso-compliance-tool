@@ -163,10 +163,9 @@ function RegisterForm() {
   }, [step]);
 
   const activePlan = PLANS.find((p) => p.id === state.plan)!;
-  const skipPayment = state.plan === "starter";
-  // For starter (no payment step), displayed step numbers shift down by 1 after step 2
-  const displayStep = skipPayment && step > 2 ? step - 1 : step;
-  const totalSteps = skipPayment ? 5 : 6;
+  // All plans are paid (Starter $29, Pro $49, Enterprise $79) — every signup goes through Stripe Checkout.
+  const displayStep = step;
+  const totalSteps = 6;
 
   function goBack() { setError(null); setStep((s) => s - 1); }
 
@@ -199,7 +198,7 @@ function RegisterForm() {
         regToken: data.regToken,
         ...(data.devOtp ? { devOtp: data.devOtp, otp: data.devOtp } : {}),
       });
-      setStep(skipPayment ? 4 : 3);
+      setStep(3);
     } catch { setError("Something went wrong. Please try again."); }
     finally { setLoading(false); }
   }
@@ -275,9 +274,17 @@ function RegisterForm() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Failed to create workspace. Please try again."); return; }
-      // Sign out any existing session (e.g. master admin), then sign in as the new user
+      // Sign out any existing session (e.g. master admin), then sign in as the new user.
+      // The user just enabled MFA in step 5, so we must pass the TOTP code along with
+      // credentials — `state.mfaCode` is the code they just entered to confirm MFA setup
+      // and is still inside the 30s window when they finish workspace setup quickly.
       await signOut({ redirect: false });
-      const result = await signIn("credentials", { email: state.email, password: state.password, redirect: false });
+      const result = await signIn("credentials", {
+        email: state.email,
+        password: state.password,
+        totpCode: state.mfaEnabled ? state.mfaCode : undefined,
+        redirect: false,
+      });
       if (result?.ok) {
         localStorage.setItem("isocomply_new_user", "1");
         router.push("/dashboard");
