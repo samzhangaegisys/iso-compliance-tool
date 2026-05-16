@@ -52,6 +52,7 @@ import { Badge } from "@/components/ui/badge";
 import { useSession, signOut as nextAuthSignOut } from "next-auth/react";
 import { PlanProvider, usePlan, type Plan } from "@/lib/plan-context";
 import { OrgProvider, useOrg } from "@/lib/org-context";
+import { AIAssistantDrawer, AIAssistantTrigger } from "@/components/dashboard/ai-assistant-drawer";
 
 const navItems = [
   {
@@ -173,6 +174,7 @@ function TopBar() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [orgMenuOpen, setOrgMenuOpen]   = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [aiOpen, setAiOpen]           = useState(false);
 
   const isMasterAdmin = session?.user?.email === "admin@isocomply.io";
   const orgName = org?.name ?? (isMasterAdmin ? "Admin" : "…");
@@ -242,6 +244,9 @@ function TopBar() {
       <SidebarTrigger />
       <Separator orientation="vertical" className="h-5" />
       <div className="flex-1" />
+
+      {/* AI assistant trigger — opens the side-panel chat */}
+      <AIAssistantTrigger onClick={() => setAiOpen(true)} />
 
       {/* Notification bell */}
       <div ref={notifRef} className="relative">
@@ -463,6 +468,9 @@ function TopBar() {
           </div>
         )}
       </div>
+
+      {/* AI assistant side drawer — mounted at the header level so it overlays the entire app shell */}
+      <AIAssistantDrawer open={aiOpen} onClose={() => setAiOpen(false)} />
     </header>
   );
 }

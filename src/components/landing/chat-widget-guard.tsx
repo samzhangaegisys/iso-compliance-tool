@@ -3,20 +3,29 @@
 import { usePathname } from "next/navigation";
 import { ChatWidget } from "./chat-widget";
 
-// Render the chat widget only on public/landing pages, not inside the app.
+// Emma is the public-site virtual customer-service rep. She is NEVER shown inside
+// the dashboard — in-app users get a dedicated AI assistant drawer instead
+// (src/components/dashboard/ai-assistant-drawer.tsx).
+const APP_ROUTE_PREFIXES = [
+  "/dashboard",
+  "/projects",
+  "/tasks",
+  "/evidence",
+  "/reports",
+  "/standards",
+  "/team",
+  "/settings",
+  "/activity",
+  "/risks",
+  "/vendors",
+  "/policies",
+  "/audit-log",
+  "/api-docs", // dev/customer-facing API docs render in the same shell
+];
+
 export function ChatWidgetGuard() {
   const pathname = usePathname();
-  const isDashboard =
-    pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/projects") ||
-    pathname.startsWith("/tasks") ||
-    pathname.startsWith("/evidence") ||
-    pathname.startsWith("/reports") ||
-    pathname.startsWith("/standards") ||
-    pathname.startsWith("/team") ||
-    pathname.startsWith("/settings") ||
-    pathname.startsWith("/activity");
-
-  if (isDashboard) return null;
+  const inApp = APP_ROUTE_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  if (inApp) return null;
   return <ChatWidget />;
 }
