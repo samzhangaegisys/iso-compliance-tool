@@ -99,7 +99,7 @@ function LeftPanel({ step }: { step: number }) {
           <p className="text-slate-400 text-sm leading-relaxed max-w-sm">{c.sub}</p>
         </div>
         <ul className="space-y-3">
-          {["A$29/user/mo Starter · A$49 Professional · A$79 Enterprise", "All 5 ISO standards covered", "Audit-ready in weeks, not months", "Invite your whole team", "Cancel or upgrade any time"].map((item) => (
+          {["A$29/user/mo Starter · A$49 Professional · A$79 Enterprise", "All 5 ISO standards covered", "Audit-ready in weeks, not months", "Invite your whole team", "Monthly or annual billing"].map((item) => (
             <li key={item} className="flex items-center gap-2.5 text-sm text-slate-400">
               <CheckCircle2 className="size-4 text-blue-400 shrink-0" />{item}
             </li>
@@ -173,17 +173,31 @@ function RegisterForm() {
     return () => clearTimeout(t);
   }, [resendCooldown]);
 
-  // MFA QR fetch when entering step 5
+  // MFA QR fetch when entering step 5. Wait until state.email is also present —
+  // after a Stripe redirect, sessionStorage rehydration and the mfa-init effect
+  // can otherwise race, firing the fetch with email="" and getting a 400.
   const mfaFetched = useRef(false);
   useEffect(() => {
-    if (step === 5 && !mfaFetched.current && state.userId && state.regToken) {
-      mfaFetched.current = true;
-      fetch(`/api/onboarding/mfa-init?userId=${state.userId}&regToken=${state.regToken}&email=${encodeURIComponent(state.email)}`)
-        .then((r) => r.json())
-        .then((d) => { if (d.qrDataUrl) set({ mfaQr: d.qrDataUrl, mfaSecret: d.secret }); });
-    }
+    if (step !== 5 || mfaFetched.current) return;
+    if (!state.userId || !state.regToken || !state.email) return;
+    mfaFetched.current = true;
+    (async () => {
+      try {
+        const r = await fetch(`/api/onboarding/mfa-init?userId=${state.userId}&regToken=${state.regToken}&email=${encodeURIComponent(state.email)}`);
+        const d = await r.json();
+        if (r.ok && d.qrDataUrl) {
+          set({ mfaQr: d.qrDataUrl, mfaSecret: d.secret });
+        } else {
+          setError(d.error ?? "Couldn't load authenticator setup. Please refresh.");
+          mfaFetched.current = false;
+        }
+      } catch {
+        setError("Couldn't reach the server while loading authenticator setup. Please refresh.");
+        mfaFetched.current = false;
+      }
+    })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step]);
+  }, [step, state.userId, state.regToken, state.email]);
 
   const activePlan = PLANS.find((p) => p.id === state.plan)!;
   // All plans are paid (Starter $29, Pro $49, Enterprise $79) — every signup goes through Stripe Checkout.
