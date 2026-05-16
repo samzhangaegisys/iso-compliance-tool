@@ -142,13 +142,22 @@ function RegisterForm() {
   // Resume after Stripe redirect. The user is already signed in (we did that right
   // after verify-email), so the NextAuth session cookie survives the Stripe round-trip
   // and the MFA / workspace endpoints can identify the user via auth() on the server.
-  // No need to rehydrate userId/regToken/password from sessionStorage — we just need
-  // to know which step to land on.
+  // We rehydrate the displayed name/email from the NextAuth session so the workspace
+  // summary card shows the user's details even though React state was wiped by the
+  // page reload.
   useEffect(() => {
     const urlStep = searchParams.get("step");
     if (urlStep === "mfa") {
       set({ paid: true });
       setStep(5);
+      fetch("/api/auth/session")
+        .then((r) => r.json())
+        .then((s) => {
+          if (s?.user?.email) {
+            set({ email: s.user.email, name: s.user.name ?? "" });
+          }
+        })
+        .catch(() => {});
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
