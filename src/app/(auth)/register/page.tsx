@@ -76,8 +76,8 @@ const INITIAL: RegState = {
 const LEFT_COPY = [
   { title: "Choose your plan",           sub: "Start with per-user pricing. Minimum 5 users. Switch plans any time." },
   { title: "Create your account",        sub: "Secure, private, and GDPR compliant. Your data is always yours." },
-  { title: "Activate your subscription", sub: "Unlock the full power of ISOComply with a paid plan." },
   { title: "Verify your email",          sub: "We sent a 6-digit code to your inbox. This keeps your account secure." },
+  { title: "Activate your subscription", sub: "Unlock the full power of ISOComply with a paid plan." },
   { title: "Set up authenticator",       sub: "Add an extra layer of security. Strongly recommended for compliance professionals." },
   { title: "Create your workspace",      sub: "Give your organisation a home in ISOComply. Invite your team right after setup." },
 ];
@@ -134,20 +134,20 @@ function RegisterForm() {
   const [captchaToken, setCaptchaToken] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [otpResent, setOtpResent] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [phoneError, setPhoneError] = useState<string | null>(null);
 
   const set = (patch: Partial<RegState>) => setState((s) => ({ ...s, ...patch }));
 
   // Resume after Stripe redirect. We saved the in-memory registration state to
   // sessionStorage right before redirecting to Stripe Checkout, so we can rehydrate
-  // email/password/devOtp on return. The URL still carries userId+regToken+step=verify
-  // so a returning user with cleared sessionStorage (e.g., reopened tab) at least lands
-  // on the right step — they'll just need to enter their email and request a resent code.
+  // email/password on return. The URL carries userId+regToken+step=mfa so a returning
+  // user with cleared sessionStorage (e.g., reopened tab) still lands on the right step.
   useEffect(() => {
     const urlStep = searchParams.get("step");
     const urlUserId = searchParams.get("userId");
     const urlRegToken = searchParams.get("regToken");
-    if (urlStep === "verify" && urlUserId && urlRegToken) {
+    if (urlStep === "mfa" && urlUserId && urlRegToken) {
       let restored: Partial<RegState> = {};
       try {
         const raw = sessionStorage.getItem("isocomply_reg_state");
@@ -159,10 +159,19 @@ function RegisterForm() {
         regToken: urlRegToken,
         paid: true,
       });
-      setStep(4);
+      setStep(5);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Resend OTP cooldown — ticks down each second while > 0. We START the cooldown
+  // explicitly: after register succeeds (initial OTP sent) and after each successful
+  // resend. Don't auto-reset on step entry, or it'd loop forever once it hit 0.
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setTimeout(() => setResendCooldown((s) => Math.max(0, s - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
 
   // MFA QR fetch when entering step 5
   const mfaFetched = useRef(false);
@@ -212,6 +221,7 @@ function RegisterForm() {
         regToken: data.regToken,
         ...(data.devOtp ? { devOtp: data.devOtp, otp: data.devOtp } : {}),
       });
+      setResendCooldown(60);
       setStep(3);
     } catch { setError("Something went wrong. Please try again."); }
     finally { setLoading(false); }
@@ -226,7 +236,7 @@ function RegisterForm() {
         body: JSON.stringify({ plan: state.plan, email: state.email, userId: state.userId, regToken: state.regToken }),
       });
       const data = await res.json();
-      if (data.devMode) { set({ paid: true }); setStep(4); return; }
+      if (data.devMode) { set({ paid: true }); setStep(5); return; }
       if (!res.ok || !data.url) { setError(data.error ?? "Payment setup failed."); return; }
       // Persist the in-memory state so we can rehydrate email/password/devOtp after
       // Stripe's redirect reloads the page. sessionStorage is per-tab and cleared on
@@ -254,7 +264,7 @@ function RegisterForm() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Verification failed. Check your code and try again."); return; }
-      setStep(5);
+      setStep(4);
     } catch { setError("Something went wrong. Please try again."); }
     finally { setLoading(false); }
   }
@@ -275,6 +285,7 @@ function RegisterForm() {
       if (!res.ok) { setError(data.error ?? "Couldn't resend code. Please try again."); return; }
       if (data.devOtp) set({ devOtp: data.devOtp, otp: data.devOtp });
       setOtpResent(true);
+      setResendCooldown(60);
     } catch { setError("Something went wrong. Please try again."); }
   }
 
@@ -566,8 +577,8 @@ function RegisterForm() {
             </form>
           )}
 
-          {/* ── Step 3: Payment (paid plans only) ─────────────────────── */}
-          {step === 3 && (
+          {/* ── Step 4: Payment ───────────────────────────────────────── */}
+          {step === 4 && (
             <div>
               <h1 className="text-2xl font-bold text-slate-900 mb-1" style={{ fontFamily: "var(--font-jakarta), sans-serif" }}>Activate your subscription</h1>
               <p className="text-sm text-slate-500 mb-6">
@@ -608,8 +619,8 @@ function RegisterForm() {
             </div>
           )}
 
-          {/* ── Step 4: Email verification ─────────────────────────────── */}
-          {step === 4 && (
+          {/* ── Step 3: Email verification ─────────────────────────────── */}
+          {step === 3 && (
             <form onSubmit={handleOtpSubmit}>
               <h1 className="text-2xl font-bold text-slate-900 mb-1" style={{ fontFamily: "var(--font-jakarta), sans-serif" }}>Verify your email</h1>
               <p className="text-sm text-slate-500 mb-6">
@@ -641,7 +652,14 @@ function RegisterForm() {
 
                 <p className="text-center text-xs text-slate-400">
                   Didn&apos;t receive it?{" "}
-                  <button type="button" onClick={handleResendOtp} className="text-blue-600 hover:underline">Resend code</button>
+                  <button
+                    type="button"
+                    onClick={handleResendOtp}
+                    disabled={resendCooldown > 0}
+                    className="text-blue-600 hover:underline disabled:text-slate-400 disabled:no-underline disabled:cursor-not-allowed"
+                  >
+                    {resendCooldown > 0 ? `Resend code (${resendCooldown}s)` : "Resend code"}
+                  </button>
                 </p>
 
                 {state.devOtp && (

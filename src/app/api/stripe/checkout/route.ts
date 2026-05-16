@@ -85,7 +85,7 @@ export async function POST(req: Request) {
       allow_promotion_codes: true,
       billing_address_collection: "required",
       tax_id_collection: { enabled: true },
-      success_url: successUrl ?? `${baseUrl}/register?step=verify&userId=${resolvedUserId}&regToken=${regToken ?? ""}&paid=1`,
+      success_url: successUrl ?? `${baseUrl}/register?step=mfa&userId=${resolvedUserId}&regToken=${regToken ?? ""}&paid=1`,
       cancel_url:  cancelUrl  ?? `${baseUrl}/register?step=pay`,
       metadata: { userId: resolvedUserId, regToken: regToken ?? "", plan, seats: String(seats), billing },
     });
