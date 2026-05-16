@@ -248,8 +248,8 @@ function OrgTab() {
 // ── Billing tab ───────────────────────────────────────────────────────────────
 
 const PLAN_DETAILS: Record<string, { label: string; description: string; price: string }> = {
-  professional: { label: "Professional", description: "All 5 standards · up to 20 users", price: "£99/month" },
-  enterprise:   { label: "Enterprise",   description: "Unlimited standards & users",      price: "Custom pricing" },
+  professional: { label: "Professional", description: "Unlimited projects, users & AI Advisor queries · branded reports", price: "A$49/user/mo" },
+  enterprise:   { label: "Enterprise",   description: "Pro features + SSO, custom API, on-prem & 99.9% SLA",                price: "A$79/user/mo" },
 };
 
 function BillingTab() {
@@ -338,7 +338,7 @@ function BillingTab() {
                 ? "Unlimited standards & users"
                 : currentPlan === "professional"
                   ? "All 5 standards · up to 20 users"
-                  : "1 ISO standard · up to 5 users"}
+                  : "All 5 standards · up to 2 projects · 5 users"}
             </p>
           </div>
           <Badge className="capitalize">{currentPlan}</Badge>

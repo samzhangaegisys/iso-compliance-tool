@@ -7,15 +7,20 @@ datasource db {
 }
 
 model Organisation {
-  id            String              @id @default(cuid())
-  name          String
-  slug          String              @unique
-  logoUrl       String?
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-  projects      ComplianceProject[]
-  members       OrgMember[]
-  subscriptions Subscription[]
+  id                   String              @id @default(cuid())
+  name                 String
+  slug                 String              @unique
+  logoUrl              String?             // legacy / generic logo; also used by branded reports
+  // Branded-report customisation (Pro+ only). Falls back to defaults when null.
+  brandingPrimaryColor String?             // hex, e.g. "#2563eb"
+  brandingDisplayName  String?             // overrides `name` on PDF covers if set
+  // Evidence expiry-alert thresholds (days-before). Starter capped at 1 entry; Pro+ many.
+  expiryThresholds     Int[]               @default([30])
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  projects             ComplianceProject[]
+  members              OrgMember[]
+  subscriptions        Subscription[]
 }
 
 model OrgMember {
@@ -189,9 +194,13 @@ model Evidence {
   createdAt        DateTime           @default(now())
   classification   DataClassification @default(INTERNAL)
   updatedAt        DateTime           @updatedAt
+  // Optional expiry date — used to surface "expiring soon" alerts based on the
+  // owning organisation's `expiryThresholds`.
+  expiresAt        DateTime?
   projectControl   ProjectControl     @relation(fields: [projectControlId], references: [id], onDelete: Cascade)
 
   @@index([projectControlId])
+  @@index([expiresAt])
 }
 
 model ControlTask {

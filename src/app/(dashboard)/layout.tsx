@@ -82,9 +82,9 @@ interface Notification {
 }
 
 const PLAN_CFG: Record<Plan, { label: string; color: string; badge: string; description: string }> = {
-  starter:      { label: "Starter",      color: "text-amber-700",  badge: "bg-amber-100 text-amber-700 border-amber-200",   description: "1 ISO standard · up to 5 users" },
-  professional: { label: "Professional", color: "text-blue-700",   badge: "bg-blue-100 text-blue-700 border-blue-200",       description: "All 5 standards · up to 20 users" },
-  enterprise:   { label: "Enterprise",   color: "text-violet-700", badge: "bg-violet-100 text-violet-700 border-violet-200", description: "Unlimited standards & users" },
+  starter:      { label: "Starter",      color: "text-amber-700",  badge: "bg-amber-100 text-amber-700 border-amber-200",   description: "All 5 standards · up to 2 projects · 5 users" },
+  professional: { label: "Professional", color: "text-blue-700",   badge: "bg-blue-100 text-blue-700 border-blue-200",       description: "Unlimited projects, users & AI · branded reports" },
+  enterprise:   { label: "Enterprise",   color: "text-violet-700", badge: "bg-violet-100 text-violet-700 border-violet-200", description: "Pro + SSO, API, on-prem, 99.9% SLA" },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
