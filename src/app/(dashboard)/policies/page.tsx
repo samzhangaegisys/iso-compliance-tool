@@ -433,8 +433,115 @@ function PolicyModal({ existing, onClose, onSaved }: {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [existing?.id]);
 
-  function applyTemplate() {
-    setContent(TEMPLATES[category] ?? "");
+  // Named ISO 27001 templates the picker offers. Each one sets BOTH the title
+  // and the content (previously the button only set content, leaving the user
+  // to invent a title). Categories drive default-on-create but are decoupled
+  // from these named choices.
+  const NAMED_TEMPLATES: { id: string; name: string; category: Category; title: string; content: string }[] = [
+    {
+      id: "isms-scope",
+      name: "ISMS Scope Statement (ISO 27001 §4.3)",
+      category: "INFOSEC",
+      title: "ISMS Scope Statement",
+      content: `# ISMS Scope Statement
+
+## Purpose
+Define the boundaries and applicability of the Information Security Management System (ISMS) as required by ISO 27001 §4.3.
+
+## In-scope
+- All employees, contractors, and third parties who access company information assets
+- Production cloud infrastructure hosted in [region]
+- Customer data processed by [product name]
+- Corporate IT (email, file sharing, identity providers)
+- All physical offices listed in Annex A.7
+
+## Out-of-scope
+- [List exclusions with justification — e.g. personal devices not enrolled in MDM]
+
+## Interfaces & Dependencies
+- Third-party processors: [list]
+- External services depended upon: [list]
+
+## Review
+This scope statement is reviewed annually by the ISMS Owner and approved by the CEO.`,
+    },
+    {
+      id: "access-control",
+      name: "Access Control Policy (ISO 27001 §A.5.15)",
+      category: "ACCESS_CONTROL",
+      title: "Access Control Policy",
+      content: `# Access Control Policy
+
+## Purpose
+Establish rules governing access to information, information processing facilities, and business processes — aligning with ISO 27001 §A.5.15.
+
+## Scope
+All employees, contractors, third parties, and information systems.
+
+## Principles
+- **Least privilege** — staff receive only the access required for their role.
+- **Need to know** — sensitive information is restricted to those with a defined business need.
+- **Separation of duties** — privileged tasks (e.g. release approval + deployment) are split across roles.
+
+## Joiners / Movers / Leavers
+- **Joiners:** access provisioned by IT within 1 business day of start; documented in HR system.
+- **Movers:** access reviewed within 5 days of role change; old role permissions removed.
+- **Leavers:** all access revoked on last working day; service-account credentials rotated within 24h.
+
+## Reviews
+- Quarterly access reviews on production systems.
+- Annual review of role-permission matrix.
+
+## Multi-factor authentication
+Required for all access to internal systems, source code, cloud consoles, and customer data.
+
+## Review
+Reviewed annually or after any material change to systems or roles.`,
+    },
+    {
+      id: "incident-response",
+      name: "Incident Response Policy (ISO 27001 §A.5.24-§A.5.27)",
+      category: "INCIDENT_RESPONSE",
+      title: "Incident Response Policy",
+      content: `# Incident Response Policy
+
+## Purpose
+Define how the organisation detects, responds to, and learns from information security incidents — covering ISO 27001 §A.5.24 through §A.5.27.
+
+## Roles & responsibilities
+- **Incident Manager (on-call CISO or delegate):** declares incidents, coordinates response, owns external communications.
+- **Engineering on-call:** investigates and remediates.
+- **Legal & PR:** consulted on disclosure obligations.
+
+## Detection sources
+- SIEM and EDR alerts
+- Customer or employee reports via [incident hotline]
+- Third-party intelligence feeds
+
+## Response phases
+1. **Identify** — classify severity (P1 customer-facing data exposure → P4 minor anomaly).
+2. **Contain** — isolate affected systems, revoke credentials, snapshot for forensics.
+3. **Eradicate** — remove the threat (e.g. patch, terminate malicious processes, restore from clean backup).
+4. **Recover** — restore service, verify integrity, monitor for recurrence.
+5. **Lessons learned** — post-incident review within 5 business days; update controls and runbooks.
+
+## Communication
+- **Internal:** Incident Manager notifies CISO within 1 hour for P1/P2.
+- **Customers:** notify affected customers within 72 hours for personal-data breaches (GDPR Art. 33–34, OAIC NDB scheme).
+- **Regulators:** notify per applicable regulation timelines.
+
+## Records
+All incidents are logged with timeline, evidence, and resolution in the incident register.
+
+## Review
+Reviewed annually and after every P1 incident.`,
+    },
+  ];
+
+  function pickTemplate(t: { title: string; content: string; category: Category }) {
+    setTitle(t.title);
+    setContent(t.content);
+    setCategory(t.category);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -547,9 +654,22 @@ function PolicyModal({ existing, onClose, onSaved }: {
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <Label>Policy content (markdown) <span className="text-red-500">*</span></Label>
-                <Button type="button" variant="outline" size="sm" onClick={applyTemplate}>
-                  <BookOpen className="size-3.5 mr-1.5" /> Apply template
-                </Button>
+                <div className="relative">
+                  <select
+                    onChange={(e) => {
+                      const t = NAMED_TEMPLATES.find((x) => x.id === e.target.value);
+                      if (t) pickTemplate(t);
+                      e.target.value = ""; // reset so re-selecting same option still fires
+                    }}
+                    defaultValue=""
+                    className="text-xs border border-border rounded-md px-2 py-1.5 bg-background hover:bg-muted cursor-pointer pr-7 appearance-none"
+                  >
+                    <option value="" disabled>📄 Apply template…</option>
+                    {NAMED_TEMPLATES.map((t) => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <textarea value={content} onChange={(e) => setContent(e.target.value)} rows={14}
                 className="w-full text-xs font-mono border border-border rounded-lg px-3 py-2 bg-background focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y" />

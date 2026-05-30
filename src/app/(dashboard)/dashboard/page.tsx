@@ -323,7 +323,7 @@ export default function DashboardPage() {
         <div className="flex items-center gap-2">
           <Link href="/reports">
             <Button variant="outline" size="sm">
-              <TrendingUp className="size-4 mr-1.5" />View Reports
+              <TrendingUp className="size-4 mr-1.5" />View Gap Analysis
             </Button>
           </Link>
           <Link href="/projects">

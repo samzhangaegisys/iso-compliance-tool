@@ -218,10 +218,11 @@ function RegisterForm() {
     if (!captchaToken) { setError("Please complete the human verification."); return; }
     setLoading(true);
     try {
+      const inviteToken = searchParams.get("invite") ?? undefined;
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: state.name, email: state.email, password: state.password, phone: state.phone ? `${state.dialCode}${state.phone.replace(/\D/g, "")}` : undefined, consentTerms: state.consentTerms, consentMarketing: state.consentMarketing, captchaToken }),
+        body: JSON.stringify({ name: state.name, email: state.email, password: state.password, phone: state.phone ? `${state.dialCode}${state.phone.replace(/\D/g, "")}` : undefined, consentTerms: state.consentTerms, consentMarketing: state.consentMarketing, captchaToken, inviteToken }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Registration failed. Please try again."); return; }

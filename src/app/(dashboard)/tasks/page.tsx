@@ -1197,6 +1197,18 @@ function AddCustomFieldModal({ onAdd, onClose }: {
 
 // ── Add Task Modal ─────────────────────────────────────────────────────────────
 
+// Stable assignee colour from the userId so the same person gets the same
+// colour across re-renders without persisting it.
+const ASSIGNEE_COLORS = ["bg-blue-500", "bg-emerald-500", "bg-purple-500", "bg-amber-500", "bg-rose-500", "bg-cyan-500"];
+function colorFor(userId: string): string {
+  let h = 0;
+  for (let i = 0; i < userId.length; i++) h = (h * 31 + userId.charCodeAt(i)) | 0;
+  return ASSIGNEE_COLORS[Math.abs(h) % ASSIGNEE_COLORS.length];
+}
+function initialsFor(name: string): string {
+  return name.split(/\s+/).map((w) => w[0]).filter(Boolean).join("").slice(0, 2).toUpperCase();
+}
+
 function AddTaskModal({ onClose, onAdd }: {
   onClose: () => void;
   onAdd: (task: TaskItem) => void;
@@ -1206,7 +1218,24 @@ function AddTaskModal({ onClose, onAdd }: {
     dueDate: "", priority: "MEDIUM" as Priority, description: "", status: "Todo" as Status,
   });
   const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [orgMembers, setOrgMembers] = useState<{ userId: string; name: string }[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Live org members for the Assignee dropdown — replaces the hardcoded mock
+  // list (Sarah K., James O., Tom R., Admin) so a tenant sees ONLY their own
+  // organisation's people.
+  useEffect(() => {
+    fetch("/api/team")
+      .then((r) => r.ok ? r.json() : { members: [] })
+      .then((data) => {
+        const members = (data.members ?? []).map((m: { userId: string; name: string }) => ({
+          userId: m.userId,
+          name: m.name,
+        }));
+        setOrgMembers(members);
+      })
+      .catch(() => {});
+  }, []);
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((p) => ({
@@ -1230,12 +1259,15 @@ function AddTaskModal({ onClose, onAdd }: {
   function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.title.trim()) return;
-    const m = TEAM_MEMBERS.find((x) => x.name === form.assignee) ?? TEAM_MEMBERS[4];
+    const picked = orgMembers.find((x) => x.name === form.assignee);
+    const assigneeName     = picked?.name ?? "Unassigned";
+    const assigneeInitials = picked ? initialsFor(picked.name) : "—";
+    const assigneeColor    = picked ? colorFor(picked.userId) : "bg-slate-400";
     onAdd({
       id: String(Date.now()),
       title: form.title, standard: form.standard, control: form.control,
       dueDate: form.dueDate, priority: form.priority,
-      assignee: m.name, assigneeInitials: m.initials, assigneeColor: m.color,
+      assignee: assigneeName, assigneeInitials, assigneeColor,
       status: form.status, description: form.description,
       subtasks: [], comments: [], attachments,
       createdBy: "Me",
@@ -1292,7 +1324,8 @@ function AddTaskModal({ onClose, onAdd }: {
               <label className="text-xs font-medium text-foreground">Assignee</label>
               <select value={form.assignee} onChange={(e) => set("assignee", e.target.value)}
                 className="w-full text-sm bg-muted border border-border rounded-lg px-3 py-2 outline-none focus:border-blue-400 cursor-pointer">
-                {TEAM_MEMBERS.map((m) => <option key={m.name}>{m.name}</option>)}
+                <option value="Unassigned">Unassigned</option>
+                {orgMembers.map((m) => <option key={m.userId} value={m.name}>{m.name}</option>)}
               </select>
             </div>
             <div className="space-y-1.5">
@@ -1418,8 +1451,13 @@ function TasksPageInner() {
   }, [panelWidth]);
 
   useEffect(() => {
+    // Safety net: same pattern as cross-mappings — a hung fetch (cold-start
+    // Vercel function, transient network) must not pin the page on "Loading…"
+    // forever. Worst case at 10s, drop to empty state. Any data that arrived
+    // in the meantime survives.
+    const safetyTimer = setTimeout(() => setLoadingTasks(false), 10_000);
     fetch("/api/tasks")
-      .then((r) => r.json())
+      .then((r) => r.ok ? r.json() : { tasks: [] })
       .then((data) => {
         const mapped: TaskItem[] = (data.tasks ?? []).map((t: {
           id: string; title: string; description: string; status: string;
@@ -1445,9 +1483,12 @@ function TasksPageInner() {
           watchers: [],
         }));
         setTasks(mapped);
-        setLoadingTasks(false);
       })
-      .catch(() => setLoadingTasks(false));
+      .catch(() => {})
+      .finally(() => {
+        clearTimeout(safetyTimer);
+        setLoadingTasks(false);
+      });
   }, []);
 
   const selectedTask = tasks.find((t) => t.id === selectedId) ?? null;

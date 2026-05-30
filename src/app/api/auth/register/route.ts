@@ -16,6 +16,10 @@ const RegisterSchema = z.object({
   consentTerms:      z.boolean(),
   consentMarketing:  z.boolean().optional().default(false),
   captchaToken:      z.string().optional(),
+  // When set, the signup is a team-invite acceptance: the new user joins the
+  // inviter's organisation instead of creating their own. Comes from the
+  // /register?invite=<token> URL on the email signup link.
+  inviteToken:       z.string().optional(),
 });
 
 function generateOtp(): string {
@@ -44,7 +48,7 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input." }, { status: 400 });
   }
-  const { name, email, password, phone, consentTerms, consentMarketing, captchaToken } = parsed.data;
+  const { name, email, password, phone, consentTerms, consentMarketing, captchaToken, inviteToken } = parsed.data;
 
   if (!consentTerms) {
     return NextResponse.json({ error: "You must agree to the Terms of Service and Privacy Policy." }, { status: 400 });
@@ -67,10 +71,33 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "An account with this email already exists." }, { status: 409 });
   }
 
+  // If an invite token was supplied, validate it matches this email and is
+  // still active. Mismatches fail closed — we don't silently fall back to
+  // "create your own org" so a recipient can't accidentally end up outside
+  // the org that paid for their seat.
+  let pendingInvite: { id: string; orgId: string; role: "OWNER" | "ADMIN" | "MEMBER" | "VIEWER" } | null = null;
+  if (inviteToken) {
+    const found = await prisma.teamInvite.findUnique({ where: { token: inviteToken } });
+    if (!found) {
+      return NextResponse.json({ error: "This invite link is invalid or has been revoked." }, { status: 400 });
+    }
+    if (found.acceptedAt) {
+      return NextResponse.json({ error: "This invite has already been used." }, { status: 400 });
+    }
+    if (found.expiresAt < new Date()) {
+      return NextResponse.json({ error: "This invite link has expired. Ask the inviter to send a new one." }, { status: 400 });
+    }
+    if (found.email.toLowerCase() !== email.toLowerCase()) {
+      return NextResponse.json({ error: "This invite was sent to a different email address." }, { status: 400 });
+    }
+    pendingInvite = { id: found.id, orgId: found.orgId, role: found.role };
+  }
+
   // Hash password
   const passwordHash = await hashPassword(password);
 
-  // Create user (emailVerified = null until OTP verified)
+  // Create user (emailVerified = null until OTP verified). Invite recipients
+  // skip the org-creation onboarding step since they're joining an existing org.
   const user = await prisma.user.create({
     data: {
       email,
@@ -79,9 +106,24 @@ export async function POST(req: Request) {
       phone: phone || null,
       marketingConsent: consentMarketing ?? false,
       emailVerified: null,
-      onboardingDone: false,
+      onboardingDone: pendingInvite !== null,
     },
   });
+
+  // Consume the invite: join the user to the inviter's org and mark accepted.
+  // Done in a transaction so a partially-completed join can't leave a dangling
+  // OrgMember without the matching invite-accepted marker.
+  if (pendingInvite) {
+    await prisma.$transaction([
+      prisma.orgMember.create({
+        data: { orgId: pendingInvite.orgId, userId: user.id, role: pendingInvite.role },
+      }),
+      prisma.teamInvite.update({
+        where: { id: pendingInvite.id },
+        data: { acceptedAt: new Date() },
+      }),
+    ]);
+  }
 
   // Generate OTP (6-digit) + registration token
   const otp = generateOtp();

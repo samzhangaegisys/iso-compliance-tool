@@ -988,8 +988,8 @@ function UploadModal({ onClose, onUploaded, projects }: { onClose: () => void; o
               {/* Google Drive tab */}
               {activeTab === "googledrive" && (
                 <div className="flex flex-col items-center justify-center py-10 gap-3">
-                  <div className="size-12 rounded-xl bg-red-50 flex items-center justify-center">
-                    <Cloud className="size-6 text-red-400" />
+                  <div className="size-12 rounded-xl bg-emerald-50 flex items-center justify-center">
+                    <Cloud className="size-6 text-emerald-500" />
                   </div>
                   <div className="text-center">
                     <div className="flex items-center justify-center gap-2 mb-1">
@@ -1002,6 +1002,14 @@ function UploadModal({ onClose, onUploaded, projects }: { onClose: () => void; o
                     </p>
                   </div>
                 </div>
+              )}
+
+              {/* Inline error when Next would be blocked */}
+              {!canProceed && (
+                <p className="mt-3 text-xs text-red-600 flex items-center gap-1.5">
+                  <AlertTriangle className="size-3.5 shrink-0" />
+                  Please select a file to continue.
+                </p>
               )}
             </div>
           )}
