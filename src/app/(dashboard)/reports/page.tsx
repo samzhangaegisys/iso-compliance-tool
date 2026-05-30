@@ -850,17 +850,40 @@ function ReportView({ std, assessment, onCreateTasks, projectName }: {
       const now = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
       const W = 210;
 
+      // Pro+ branded logo: fetch via server-side proxy so we sidestep CORS.
+      // Returns null on Starter, missing logo, fetch failure, or unsupported format.
+      let logo: { dataUrl: string; format: "PNG" | "JPEG" } | null = null;
+      if (brand.logoUrl) {
+        try {
+          const res = await fetch("/api/org/logo-image");
+          if (res.ok) {
+            const data = await res.json();
+            if (data.logo) logo = data.logo;
+          }
+        } catch { /* PDF still generates without the logo */ }
+      }
+
       // Header bar — uses Pro+ branding colour and display name if configured
       doc.setFillColor(brand.primary[0], brand.primary[1], brand.primary[2]);
       doc.rect(0, 0, W, 28, "F");
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(16);
       doc.setFont("helvetica", "bold");
-      doc.text("Gap Analysis Report", 14, 12);
+      // Shift text right if a logo is rendered on the left edge of the header
+      const textX = logo ? 36 : 14;
+      doc.text("Gap Analysis Report", textX, 12);
       doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
-      doc.text(`${brand.displayName}  ·  ${std.name}${projectName ? "  ·  " + projectName : ""}`, 14, 19);
-      doc.text(`Generated ${now}`, 14, 25);
+      doc.text(`${brand.displayName}  ·  ${std.name}${projectName ? "  ·  " + projectName : ""}`, textX, 19);
+      doc.text(`Generated ${now}`, textX, 25);
+
+      if (logo) {
+        // Centre a 18×18 mm logo vertically in the 28 mm header. jsPDF will
+        // letterbox to preserve aspect ratio.
+        try {
+          doc.addImage(logo.dataUrl, logo.format, 14, 5, 18, 18, undefined, "FAST");
+        } catch { /* malformed image — proceed without */ }
+      }
 
       // Score summary row
       const summaryY = 36;
