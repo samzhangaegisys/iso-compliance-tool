@@ -8,6 +8,7 @@ import {
   Tag, BookOpen, MessageSquare, Filter, Paperclip, ArrowLeft, Send,
   AtSign, Share2, Copy, Check, Pencil, ChevronDown, Link2,
   AlertCircle, AlertTriangle, Minus, MoreHorizontal, Eye, Trash2,
+  LayoutGrid, List, ChevronUp,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -1197,6 +1198,116 @@ function AddCustomFieldModal({ onAdd, onClose }: {
 
 // ── Add Task Modal ─────────────────────────────────────────────────────────────
 
+// ── Table view ────────────────────────────────────────────────────────────────
+// Sortable table layout — same data set as the Kanban board, columns:
+// Title, Standard, Assignee, Priority, Due Date, Status.
+
+type TaskSortKey = "dueDate" | "priority" | "status" | "assignee" | "title" | "standard";
+
+const PRIORITY_RANK: Record<Priority, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+const STATUS_RANK: Record<Status, number> = { "Todo": 0, "In Progress": 1, "In Review": 2, "Done": 3 };
+
+function TaskTable({ tasks, sortKey, sortDir, onSort, onSelect, selectedId }: {
+  tasks: TaskItem[];
+  sortKey: TaskSortKey;
+  sortDir: "asc" | "desc";
+  onSort: (k: TaskSortKey) => void;
+  onSelect: (id: string) => void;
+  selectedId: string | null;
+}) {
+  const sorted = [...tasks].sort((a, b) => {
+    let cmp = 0;
+    switch (sortKey) {
+      case "title":     cmp = a.title.localeCompare(b.title); break;
+      case "standard":  cmp = a.standard.localeCompare(b.standard); break;
+      case "assignee":  cmp = a.assignee.localeCompare(b.assignee); break;
+      case "priority":  cmp = (PRIORITY_RANK[a.priority] ?? 9) - (PRIORITY_RANK[b.priority] ?? 9); break;
+      case "status":    cmp = (STATUS_RANK[a.status] ?? 9) - (STATUS_RANK[b.status] ?? 9); break;
+      case "dueDate": {
+        // Empty due dates sort last regardless of direction.
+        const aHas = !!a.dueDate; const bHas = !!b.dueDate;
+        if (!aHas && !bHas) cmp = 0;
+        else if (!aHas) cmp = 1;
+        else if (!bHas) cmp = -1;
+        else cmp = a.dueDate.localeCompare(b.dueDate);
+        break;
+      }
+    }
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+
+  function Header({ k, label, className = "" }: { k: TaskSortKey; label: string; className?: string }) {
+    const active = sortKey === k;
+    return (
+      <th
+        onClick={() => onSort(k)}
+        className={`py-2 px-3 text-left text-xs font-medium text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors ${className}`}
+      >
+        <span className="inline-flex items-center gap-1">
+          {label}
+          {active && (sortDir === "asc" ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />)}
+        </span>
+      </th>
+    );
+  }
+
+  return (
+    <div className="flex-1 overflow-auto p-5">
+      <table className="w-full text-sm">
+        <thead className="border-b border-border bg-muted/30 sticky top-0">
+          <tr>
+            <Header k="title"    label="Title" />
+            <Header k="standard" label="Standard" />
+            <Header k="assignee" label="Assignee" />
+            <Header k="priority" label="Priority" />
+            <Header k="dueDate"  label="Due Date" />
+            <Header k="status"   label="Status" />
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((t) => {
+            const isSel = t.id === selectedId;
+            return (
+              <tr
+                key={t.id}
+                onClick={() => onSelect(t.id)}
+                className={`border-b border-border cursor-pointer hover:bg-muted/40 ${isSel ? "bg-blue-50" : ""}`}
+              >
+                <td className="py-2 px-3 text-sm font-medium text-foreground">{t.title}</td>
+                <td className="py-2 px-3 text-xs text-muted-foreground">{t.standard}</td>
+                <td className="py-2 px-3">
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className={`size-5 rounded-full ${t.assigneeColor} text-white text-[10px] font-bold flex items-center justify-center`}>
+                      {t.assigneeInitials}
+                    </span>
+                    {t.assignee}
+                  </div>
+                </td>
+                <td className="py-2 px-3 text-xs">
+                  <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                    t.priority === "CRITICAL" ? "bg-red-100 text-red-700"
+                    : t.priority === "HIGH"   ? "bg-orange-100 text-orange-700"
+                    : t.priority === "MEDIUM" ? "bg-amber-100 text-amber-700"
+                                              : "bg-slate-100 text-slate-700"
+                  }`}>{t.priority}</span>
+                </td>
+                <td className={`py-2 px-3 text-xs ${isTaskOverdue(t) ? "text-red-600 font-semibold" : "text-muted-foreground"}`}>
+                  {t.dueDate || "—"}
+                </td>
+                <td className="py-2 px-3 text-xs">
+                  <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-muted text-foreground">
+                    {t.status}
+                  </span>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 // Stable assignee colour from the userId so the same person gets the same
 // colour across re-renders without persisting it.
 const ASSIGNEE_COLORS = ["bg-blue-500", "bg-emerald-500", "bg-purple-500", "bg-amber-500", "bg-rose-500", "bg-cyan-500"];
@@ -1417,6 +1528,9 @@ function TasksPageInner() {
   const [stdFilter,     setStdFilter]     = useState("All");
   const [overdueOnly,   setOverdueOnly]   = useState(filterParam === "overdue");
   const [showAddModal,  setShowAddModal]  = useState(false);
+  const [viewMode,      setViewMode]      = useState<"board" | "table">("board");
+  const [sortKey,       setSortKey]       = useState<"dueDate" | "priority" | "status" | "assignee" | "title" | "standard">("dueDate");
+  const [sortDir,       setSortDir]       = useState<"asc" | "desc">("asc");
   const [draggingId,    setDraggingId]    = useState<string | null>(null);
   const [dragOverCol,   setDragOverCol]   = useState<Status | null>(null);
   const [approvalFor,   setApprovalFor]   = useState<{ taskId: string; toStatus: Status } | null>(null);
@@ -1453,9 +1567,9 @@ function TasksPageInner() {
   useEffect(() => {
     // Safety net: same pattern as cross-mappings — a hung fetch (cold-start
     // Vercel function, transient network) must not pin the page on "Loading…"
-    // forever. Worst case at 10s, drop to empty state. Any data that arrived
+    // forever. Worst case at 5s, drop to empty state. Any data that arrived
     // in the meantime survives.
-    const safetyTimer = setTimeout(() => setLoadingTasks(false), 10_000);
+    const safetyTimer = setTimeout(() => setLoadingTasks(false), 5_000);
     fetch("/api/tasks")
       .then((r) => r.ok ? r.json() : { tasks: [] })
       .then((data) => {
@@ -1572,6 +1686,19 @@ function TasksPageInner() {
 
           <div className="flex items-center gap-2 flex-wrap">
             <Filter className="size-3.5 text-muted-foreground" />
+            {/* View toggle — board (Kanban) vs table (sortable list). */}
+            <div className="flex items-center border border-border rounded-full overflow-hidden">
+              <button onClick={() => setViewMode("board")}
+                className={`px-2.5 py-1 text-xs font-medium flex items-center gap-1 transition-colors ${viewMode === "board" ? "bg-blue-600 text-white" : "text-muted-foreground hover:bg-muted"}`}
+                title="Board view">
+                <LayoutGrid className="size-3" /> Board
+              </button>
+              <button onClick={() => setViewMode("table")}
+                className={`px-2.5 py-1 text-xs font-medium flex items-center gap-1 transition-colors border-l border-border ${viewMode === "table" ? "bg-blue-600 text-white" : "text-muted-foreground hover:bg-muted"}`}
+                title="Table view">
+                <List className="size-3" /> Table
+              </button>
+            </div>
             <button onClick={() => setOverdueOnly((o) => !o)}
               className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors flex items-center gap-1 ${
                 overdueOnly
@@ -1583,14 +1710,22 @@ function TasksPageInner() {
               <AlertTriangle className="size-3" />
               Overdue ({overdueCount})
             </button>
-            {standards.map((s) => (
-              <button key={s} onClick={() => setStdFilter(s)}
-                className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors ${
-                  stdFilter === s ? "bg-blue-600 text-white" : "bg-muted text-muted-foreground hover:bg-muted/80"
-                }`}>
-                {s === "All" ? "All standards" : s}
-              </button>
-            ))}
+            {/* Standard filter — dropdown so the option list scales gracefully
+                when an org adds more standards / custom frameworks. */}
+            <select
+              value={stdFilter}
+              onChange={(e) => setStdFilter(e.target.value)}
+              className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors cursor-pointer border ${
+                stdFilter !== "All"
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-muted text-muted-foreground border-transparent hover:bg-muted/80"
+              }`}
+              title="Filter tasks by ISO standard"
+            >
+              {standards.map((s) => (
+                <option key={s} value={s}>{s === "All" ? "All standards" : s}</option>
+              ))}
+            </select>
             <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white text-xs ml-1"
               onClick={() => setShowAddModal(true)}>
               <Plus className="size-3.5 mr-1" /> Create
@@ -1617,6 +1752,18 @@ function TasksPageInner() {
               </Button>
             </div>
           </div>
+        ) : viewMode === "table" ? (
+          <TaskTable
+            tasks={filtered}
+            sortKey={sortKey}
+            sortDir={sortDir}
+            onSort={(k) => {
+              if (sortKey === k) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+              else { setSortKey(k); setSortDir("asc"); }
+            }}
+            onSelect={(id) => setSelectedId(id === selectedId ? null : id)}
+            selectedId={selectedId}
+          />
         ) : (
         <div className="flex flex-1 overflow-hidden">
           {/* Kanban board */}

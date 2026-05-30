@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Shield, Smartphone, CheckCircle2, AlertCircle, Copy, Check, X } from "lucide-react";
+import { Shield, Smartphone, CheckCircle2, AlertCircle, AlertTriangle, Copy, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -172,6 +172,15 @@ export function MFASection() {
           <p className="text-sm font-semibold text-foreground mb-1">Set up your authenticator app</p>
           <p className="text-xs text-muted-foreground">
             Use any TOTP app: Google Authenticator, Authy, Microsoft Authenticator, 1Password, Bitwarden, etc.
+          </p>
+        </div>
+
+        <div className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3">
+          <AlertTriangle className="size-4 text-amber-600 shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-900 leading-relaxed">
+            <span className="font-semibold">Save this backup key somewhere safe</span> (e.g. a password manager).
+            You&apos;ll need it if you lose access to your authenticator app — otherwise you&apos;ll be locked out
+            of your account.
           </p>
         </div>
 

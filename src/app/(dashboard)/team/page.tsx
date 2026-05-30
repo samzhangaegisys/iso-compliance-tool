@@ -174,14 +174,20 @@ export default function TeamPage() {
   const [inviteSuccess,  setInviteSuccess]  = useState<string | null>(null);
 
   function load() {
+    setLoading(true);
+    // 5s safety net so the skeleton can't get stuck if the fetch hangs.
+    const safetyTimer = setTimeout(() => setLoading(false), 5_000);
     fetch("/api/team")
       .then((r) => r.ok ? r.json() : { members: [], pendingInvites: [] })
       .then((data) => {
         setMembers(data.members ?? []);
         setPendingInvites(data.pendingInvites ?? []);
-        setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch(() => {})
+      .finally(() => {
+        clearTimeout(safetyTimer);
+        setLoading(false);
+      });
   }
   useEffect(() => { load(); }, []);
 

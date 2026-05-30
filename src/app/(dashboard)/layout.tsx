@@ -121,7 +121,7 @@ function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader>
-        <Link href="/" className="flex items-center gap-2 px-2 py-1">
+        <Link href="/dashboard" className="flex items-center gap-2 px-2 py-1">
           <div className="size-8 rounded-lg bg-blue-600 flex items-center justify-center">
             <ShieldCheck className="size-4 text-white" />
           </div>
@@ -452,11 +452,6 @@ function TopBar() {
                 className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-foreground hover:bg-muted transition-colors">
                 <UserCog className="size-4 text-muted-foreground shrink-0" />
                 Profile
-              </Link>
-              <Link href="/settings" onClick={() => setUserMenuOpen(false)}
-                className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-foreground hover:bg-muted transition-colors">
-                <KeyRound className="size-4 text-muted-foreground shrink-0" />
-                Settings
               </Link>
             </div>
 

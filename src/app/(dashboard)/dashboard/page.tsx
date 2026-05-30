@@ -246,11 +246,19 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (localStorage.getItem("isocomply_new_user") === "1") {
-      setShowWelcome(true);
-      return;
-    }
-    if (org?.isNew && !localStorage.getItem("dismissed_welcome")) {
+    // Dismissed wins over everything — including the post-registration
+    // `isocomply_new_user` flag. Bug fix: previously the new_user flag was
+    // checked FIRST and returned early, so the banner would reappear on every
+    // page load if that flag stayed set even after the user dismissed it.
+    // Dismissal is keyed by org.id so multiple users on one browser don't
+    // collide; older un-scoped key still respected for backwards-compat.
+    const orgScopedKey = org?.id ? `dismissed_welcome:${org.id}` : null;
+    const isDismissed =
+      localStorage.getItem("dismissed_welcome") === "1" ||
+      (orgScopedKey ? localStorage.getItem(orgScopedKey) === "1" : false);
+    if (isDismissed) return;
+
+    if (localStorage.getItem("isocomply_new_user") === "1" || org?.isNew) {
       setShowWelcome(true);
     }
   }, [org]);
@@ -277,6 +285,9 @@ export default function DashboardPage() {
     setShowWelcome(false);
     localStorage.removeItem("isocomply_new_user");
     localStorage.setItem("dismissed_welcome", "1");
+    // Also persist scoped by org so a different user on the same browser
+    // still gets their own onboarding banner on first login.
+    if (org?.id) localStorage.setItem(`dismissed_welcome:${org.id}`, "1");
   }
 
   // Use real project data or fall back to mock for demo if data exists
