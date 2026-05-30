@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Search, Trash2, X, Link2, ArrowRight, Sparkles } from "lucide-react";
+import { Plus, Search, Trash2, X, Link2, ArrowRight, Sparkles, Wand2, Check } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,12 @@ interface MappingRow {
   notes: string | null;
   createdAt: string;
   createdBy: string;
+  source: { id: string; ref: string; title: string; clause: string; standardCode: string; standardName: string };
+  target: { id: string; ref: string; title: string; clause: string; standardCode: string; standardName: string };
+}
+
+interface Suggestion {
+  score: number;
   source: { id: string; ref: string; title: string; clause: string; standardCode: string; standardName: string };
   target: { id: string; ref: string; title: string; clause: string; standardCode: string; standardName: string };
 }
@@ -183,25 +189,64 @@ function CreateModal({ standards, onClose, onSaved }: {
 export default function CrossMappingsPage() {
   const [mappings, setMappings]     = useState<MappingRow[]>([]);
   const [standards, setStandards]   = useState<StandardGroup[]>([]);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [dismissed, setDismissed]   = useState<Set<string>>(new Set());
+  const [acceptingKey, setAcceptingKey] = useState<string | null>(null);
   const [loading, setLoading]       = useState(true);
   const [showModal, setShowModal]   = useState(false);
   const [search, setSearch]         = useState("");
+
+  function suggestionKey(s: Suggestion) {
+    return s.source.id < s.target.id
+      ? `${s.source.id}|${s.target.id}`
+      : `${s.target.id}|${s.source.id}`;
+  }
 
   function loadAll() {
     setLoading(true);
     Promise.all([
       fetch("/api/control-mappings").then((r) => r.json()),
       fetch("/api/controls/catalog").then((r) => r.json()),
+      fetch("/api/control-mappings/suggestions").then((r) => r.json()),
     ])
-      .then(([m, c]) => {
+      .then(([m, c, s]) => {
         setMappings(m.mappings ?? []);
         setStandards(c.standards ?? []);
+        setSuggestions(s.suggestions ?? []);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }
 
+  async function acceptSuggestion(s: Suggestion) {
+    const key = suggestionKey(s);
+    setAcceptingKey(key);
+    try {
+      const res = await fetch("/api/control-mappings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sourceControlId: s.source.id,
+          targetControlId: s.target.id,
+          mappingType: "SIMILAR",
+        }),
+      });
+      if (res.ok) loadAll();
+    } finally {
+      setAcceptingKey(null);
+    }
+  }
+
+  function dismissSuggestion(s: Suggestion) {
+    setDismissed((prev) => new Set(prev).add(suggestionKey(s)));
+  }
+
   useEffect(() => { loadAll(); }, []);
+
+  const visibleSuggestions = useMemo(
+    () => suggestions.filter((s) => !dismissed.has(suggestionKey(s))),
+    [suggestions, dismissed],
+  );
 
   const filtered = useMemo(() => {
     if (!search.trim()) return mappings;
@@ -247,6 +292,56 @@ export default function CrossMappingsPage() {
                 often satisfies a control in 27001 AND a control in 9001. Spin up a project for a second standard
                 from the Projects page, then come back here.
               </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {visibleSuggestions.length > 0 && (
+        <Card className="border-violet-200 bg-violet-50/30">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Wand2 className="size-4 text-violet-600" />
+                <CardTitle className="text-sm">Suggested mappings ({visibleSuggestions.length})</CardTitle>
+              </div>
+              <p className="text-[11px] text-muted-foreground">Likely matches based on control titles. Accept to save as <b>SIMILAR</b> (re-classify later if equivalent).</p>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {visibleSuggestions.map((s) => {
+                const key = suggestionKey(s);
+                const accepting = acceptingKey === key;
+                return (
+                  <div key={key} className="border border-violet-200 bg-background rounded-xl p-3 flex items-center gap-3">
+                    <span className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded border bg-violet-100 text-violet-700 border-violet-200 shrink-0">
+                      {Math.round(s.score * 100)}%
+                    </span>
+                    <div className="flex-1 min-w-0 grid grid-cols-[1fr_auto_1fr] gap-3 items-center">
+                      <div className="min-w-0">
+                        <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{s.source.standardCode}</p>
+                        <p className="text-sm font-medium text-foreground truncate">{s.source.ref} — {s.source.title}</p>
+                      </div>
+                      <ArrowRight className="size-4 text-muted-foreground" />
+                      <div className="min-w-0">
+                        <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{s.target.standardCode}</p>
+                        <p className="text-sm font-medium text-foreground truncate">{s.target.ref} — {s.target.title}</p>
+                      </div>
+                    </div>
+                    <Button size="sm" variant="outline" disabled={accepting}
+                      onClick={() => acceptSuggestion(s)}
+                      title="Accept this suggestion">
+                      <Check className="size-3.5 mr-1" /> {accepting ? "Saving…" : "Accept"}
+                    </Button>
+                    <button onClick={() => dismissSuggestion(s)}
+                      title="Dismiss"
+                      className="text-muted-foreground hover:text-foreground p-1">
+                      <X className="size-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
