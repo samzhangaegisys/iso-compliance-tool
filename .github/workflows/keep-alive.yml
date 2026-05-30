@@ -1,39 +1,138 @@
 name: Keep databases alive
 
 # Supabase free-tier projects auto-pause after ~1 week of database inactivity.
-# This pings each project's Postgres directly via the Management API,
-# which (unlike pinging the Vercel app) doesn't depend on the deployment
-# being up or publicly reachable (staging is gated by Vercel SSO).
+# This workflow keeps both prod and staging projects ACTIVE, and — critically —
+# automatically restores them if they DID pause (for whatever reason: missed
+# cron, expired token, transient API failure, etc.).
+#
+# The previous version only POSTed a SELECT 1 to /database/query, which times
+# out (HTTP 544) on paused projects — so once a pause happened, the workflow
+# could never recover it. This version checks status first and calls the
+# explicit /restore endpoint when needed.
+#
+# Schedule rationale: every 6 hours. Free-tier pauses after ~7 days of idle,
+# so daily would suffice in theory, but four pings per day means a single
+# missed run can't tip the project over the edge.
 
 on:
   schedule:
-    - cron: "0 3 * * *"  # 3am UTC = 1pm AEST
+    - cron: "0 */6 * * *"  # every 6 hours
   workflow_dispatch:
 
 jobs:
-  ping:
+  keep-alive:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: production
+            ref:  cfeussqcnosdazazwvih
+          - name: staging
+            ref:  nciewexktrojzgftjoav
+    steps:
+      - name: Keep ${{ matrix.name }} alive (${{ matrix.ref }})
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          REF:   ${{ matrix.ref }}
+          NAME:  ${{ matrix.name }}
+        run: |
+          set -uo pipefail
+
+          if [ -z "$TOKEN" ]; then
+            echo "::error::SUPABASE_ACCESS_TOKEN secret is missing or empty"
+            exit 1
+          fi
+
+          API="https://api.supabase.com/v1/projects/$REF"
+
+          # 1. Check current status. Non-2xx here is fatal — likely auth issue.
+          STATUS_JSON=$(curl -sS -w "\n%{http_code}" -H "Authorization: Bearer $TOKEN" "$API")
+          HTTP=$(printf '%s' "$STATUS_JSON" | tail -n1)
+          BODY=$(printf '%s' "$STATUS_JSON" | sed '$d')
+          if [ "$HTTP" != "200" ]; then
+            echo "::error::Failed to fetch project status: HTTP $HTTP"
+            echo "Body: $BODY"
+            exit 1
+          fi
+
+          STATUS=$(printf '%s' "$BODY" | grep -oE '"status":"[^"]*"' | head -1 | cut -d'"' -f4)
+          echo "[$NAME] current status: $STATUS"
+
+          # 2. If paused/inactive, restore. The /restore call is idempotent and
+          #    returns 200 even for projects that are already active.
+          case "$STATUS" in
+            ACTIVE_HEALTHY|ACTIVE|RESTORING|COMING_UP)
+              echo "[$NAME] no restore needed"
+              ;;
+            *)
+              echo "::warning::[$NAME] project is $STATUS — calling /restore"
+              RESTORE_HTTP=$(curl -sS -o /dev/null -w "%{http_code}" -X POST \
+                -H "Authorization: Bearer $TOKEN" \
+                -H "Content-Type: application/json" \
+                "$API/restore")
+              if [ "$RESTORE_HTTP" != "200" ] && [ "$RESTORE_HTTP" != "201" ]; then
+                echo "::error::[$NAME] restore failed with HTTP $RESTORE_HTTP"
+                exit 1
+              fi
+              echo "[$NAME] restore POSTed; waiting for ACTIVE_HEALTHY (up to 5 min)"
+              for i in $(seq 1 20); do
+                sleep 15
+                CUR=$(curl -sS -H "Authorization: Bearer $TOKEN" "$API" | grep -oE '"status":"[^"]*"' | head -1 | cut -d'"' -f4)
+                echo "  t+$((i*15))s status=$CUR"
+                if [ "$CUR" = "ACTIVE_HEALTHY" ]; then break; fi
+              done
+              if [ "$CUR" != "ACTIVE_HEALTHY" ]; then
+                echo "::error::[$NAME] did not reach ACTIVE_HEALTHY within 5 min"
+                exit 1
+              fi
+              ;;
+          esac
+
+          # 3. Touch the DB to keep it warm. Failure here is non-fatal — the
+          #    project is already running, the warm-touch is just a bonus.
+          QUERY_HTTP=$(curl -sS -o /tmp/q.out -w "%{http_code}" -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"query":"SELECT 1 AS keep_alive;"}' \
+            "$API/database/query")
+          if [ "$QUERY_HTTP" = "200" ] || [ "$QUERY_HTTP" = "201" ]; then
+            echo "[$NAME] warm-touch OK"
+          else
+            echo "::warning::[$NAME] warm-touch returned $QUERY_HTTP (non-fatal)"
+            cat /tmp/q.out || true
+          fi
+
+  notify-on-restore:
+    needs: keep-alive
+    if: failure()
     runs-on: ubuntu-latest
     steps:
-      - name: Ping production Supabase
-        env:
-          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: |
-          RESP=$(curl -sf -X POST \
-            -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"query":"SELECT 1 AS keep_alive;"}' \
-            "https://api.supabase.com/v1/projects/cfeussqcnosdazazwvih/database/query")
-          echo "Production response: $RESP"
-          echo "$RESP" | grep -q '"keep_alive":1' || exit 1
-
-      - name: Ping staging Supabase
-        env:
-          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: |
-          RESP=$(curl -sf -X POST \
-            -H "Authorization: Bearer $TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"query":"SELECT 1 AS keep_alive;"}' \
-            "https://api.supabase.com/v1/projects/nciewexktrojzgftjoav/database/query")
-          echo "Staging response: $RESP"
-          echo "$RESP" | grep -q '"keep_alive":1' || exit 1
+      - name: Open issue when keep-alive fails
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `Supabase keep-alive failed (${new Date().toISOString().slice(0,10)})`;
+            const body  = [
+              `The scheduled keep-alive workflow failed for run ${context.runId}.`,
+              ``,
+              `[View logs](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})`,
+              ``,
+              `Likely causes:`,
+              `- \`SUPABASE_ACCESS_TOKEN\` secret expired or was rotated`,
+              `- Supabase Management API outage`,
+              `- One of the projects was deleted`,
+              ``,
+              `Until this is fixed, the prod/staging Supabase projects will pause again within ~7 days.`,
+            ].join('\n');
+            // Avoid spamming: only open if no open issue with the same title exists in the last 14 days
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo,
+              state: 'open', labels: 'keep-alive-failure',
+            });
+            if (existing.data.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo,
+                title, body, labels: ['keep-alive-failure'],
+              });
+            }
