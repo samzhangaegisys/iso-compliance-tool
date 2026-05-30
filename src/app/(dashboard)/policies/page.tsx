@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  FileText, Plus, Search, Sparkles, X, Edit3, Trash2, BookOpen,
+  FileText, Plus, Search, Sparkles, X, Edit3, Trash2, BookOpen, Eye,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -217,6 +217,188 @@ function StarterUpsell() {
   );
 }
 
+// Renders policy markdown for the read-only viewer. Intentionally light — covers
+// headings, bold/italic, bullet/numbered lists, horizontal rules, and inline code.
+// Tables and code blocks fall back to monospace blocks so authored markdown still reads.
+function renderMarkdown(src: string): React.ReactNode {
+  const lines = src.split("\n");
+  const out: React.ReactNode[] = [];
+  let i = 0;
+  let key = 0;
+
+  function renderInline(text: string): React.ReactNode {
+    // Escape HTML, then re-introduce bold/italic/inline-code via React nodes
+    const parts: React.ReactNode[] = [];
+    let cursor = 0;
+    const re = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > cursor) parts.push(text.slice(cursor, m.index));
+      const t = m[0];
+      if (t.startsWith("**")) parts.push(<strong key={key++}>{t.slice(2, -2)}</strong>);
+      else if (t.startsWith("`")) parts.push(<code key={key++} className="bg-muted px-1 py-0.5 rounded text-[11px] font-mono">{t.slice(1, -1)}</code>);
+      else parts.push(<em key={key++}>{t.slice(1, -1)}</em>);
+      cursor = m.index + t.length;
+    }
+    if (cursor < text.length) parts.push(text.slice(cursor));
+    return parts;
+  }
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    if (!trimmed) { i++; continue; }
+
+    if (trimmed === "---" || trimmed === "***") {
+      out.push(<hr key={key++} className="my-4 border-border" />);
+      i++; continue;
+    }
+
+    const h = trimmed.match(/^(#{1,4})\s+(.*)$/);
+    if (h) {
+      const level = h[1].length;
+      const text = h[2];
+      const cls = level === 1 ? "text-xl font-bold mt-4 mb-2"
+                : level === 2 ? "text-base font-semibold mt-4 mb-2"
+                : level === 3 ? "text-sm font-semibold mt-3 mb-1.5"
+                              : "text-xs font-semibold mt-2 mb-1 uppercase tracking-wide";
+      out.push(<div key={key++} className={cls}>{renderInline(text)}</div>);
+      i++; continue;
+    }
+
+    // Bullet list
+    if (/^[-*]\s+/.test(trimmed)) {
+      const items: string[] = [];
+      while (i < lines.length && /^[-*]\s+/.test(lines[i].trim())) {
+        items.push(lines[i].trim().replace(/^[-*]\s+/, ""));
+        i++;
+      }
+      out.push(
+        <ul key={key++} className="list-disc pl-5 space-y-1 my-2 text-sm">
+          {items.map((it, k) => <li key={k}>{renderInline(it)}</li>)}
+        </ul>,
+      );
+      continue;
+    }
+
+    // Numbered list
+    if (/^\d+\.\s+/.test(trimmed)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\d+\.\s+/.test(lines[i].trim())) {
+        items.push(lines[i].trim().replace(/^\d+\.\s+/, ""));
+        i++;
+      }
+      out.push(
+        <ol key={key++} className="list-decimal pl-5 space-y-1 my-2 text-sm">
+          {items.map((it, k) => <li key={k}>{renderInline(it)}</li>)}
+        </ol>,
+      );
+      continue;
+    }
+
+    // Pipe table — render as monospace block (good-enough fallback)
+    if (trimmed.includes("|")) {
+      const block: string[] = [];
+      while (i < lines.length && lines[i].trim().includes("|")) {
+        block.push(lines[i]);
+        i++;
+      }
+      out.push(
+        <pre key={key++} className="bg-muted rounded-lg px-3 py-2 text-xs font-mono overflow-x-auto my-2">
+          {block.join("\n")}
+        </pre>,
+      );
+      continue;
+    }
+
+    // Paragraph (collect contiguous non-blank lines)
+    const para: string[] = [trimmed];
+    i++;
+    while (i < lines.length && lines[i].trim() && !/^(#{1,4}\s|[-*]\s|\d+\.\s|---|\|)/.test(lines[i].trim())) {
+      para.push(lines[i].trim());
+      i++;
+    }
+    out.push(<p key={key++} className="text-sm leading-relaxed my-2">{renderInline(para.join(" "))}</p>);
+  }
+
+  return out;
+}
+
+interface PolicyVersionRow { id: string; version: number; content: string; changeNotes: string | null; createdAt: string; createdBy: string; }
+
+function PolicyViewerModal({ policyId, onClose, onEdit }: { policyId: string; onClose: () => void; onEdit: () => void }) {
+  const [loading, setLoading]   = useState(true);
+  const [policy, setPolicy]     = useState<(Policy & { versions: PolicyVersionRow[] }) | null>(null);
+  const [selectedV, setSelectedV] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/policies/${policyId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.policy) {
+          setPolicy(d.policy);
+          setSelectedV(d.policy.currentVersion);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [policyId]);
+
+  const current = policy?.versions.find((v) => v.version === selectedV) ?? policy?.versions[0];
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="bg-background border border-border rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+        <div className="px-5 py-3 border-b border-border flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <h2 className="font-semibold text-foreground truncate">
+              {policy?.title ?? "Loading…"}
+            </h2>
+            {policy && (
+              <p className="text-xs text-muted-foreground">
+                {CATEGORY_LABELS[policy.category]} · v{selectedV ?? policy.currentVersion}
+                {current && ` · published ${new Date(current.createdAt).toLocaleDateString("en-AU")} by ${current.createdBy}`}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {policy && policy.versions.length > 1 && (
+              <select value={selectedV ?? policy.currentVersion}
+                onChange={(e) => setSelectedV(Number(e.target.value))}
+                className="text-xs border border-border rounded-lg px-2 py-1 bg-background">
+                {policy.versions.map((v) => (
+                  <option key={v.id} value={v.version}>v{v.version}{v.version === policy.currentVersion ? " (current)" : ""}</option>
+                ))}
+              </select>
+            )}
+            <Button variant="outline" size="sm" onClick={onEdit}>
+              <Edit3 className="size-3.5 mr-1.5" /> Edit
+            </Button>
+            <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+              <X className="size-4" />
+            </button>
+          </div>
+        </div>
+        <div className="overflow-y-auto px-6 py-5 flex-1">
+          {loading ? (
+            <p className="text-sm text-muted-foreground text-center py-8">Loading…</p>
+          ) : !current ? (
+            <p className="text-sm text-muted-foreground text-center py-8">No content available for this version.</p>
+          ) : (
+            <div className="prose-sm max-w-none text-foreground">
+              {renderMarkdown(current.content)}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PolicyModal({ existing, onClose, onSaved }: {
   existing: Policy | null;
   onClose: () => void;
@@ -397,6 +579,7 @@ export default function PoliciesPage() {
   const [loading, setLoading]      = useState(true);
   const [showModal, setShowModal]  = useState(false);
   const [editing, setEditing]      = useState<Policy | null>(null);
+  const [viewerId, setViewerId]    = useState<string | null>(null);
   const [search, setSearch]        = useState("");
   const [statusFilter, setStatus]  = useState<"all" | Status>("all");
 
@@ -499,7 +682,9 @@ export default function PoliciesPage() {
                     return (
                       <tr key={p.id} className="border-b border-border hover:bg-muted/40">
                         <td className="py-3 pr-3">
-                          <p className="font-medium text-foreground">{p.title}</p>
+                          <button onClick={() => setViewerId(p.id)} className="text-left hover:underline">
+                            <p className="font-medium text-foreground">{p.title}</p>
+                          </button>
                           {p.description && <p className="text-xs text-muted-foreground line-clamp-1">{p.description}</p>}
                         </td>
                         <td className="py-3 pr-3 text-xs text-muted-foreground">{CATEGORY_LABELS[p.category]}</td>
@@ -520,11 +705,18 @@ export default function PoliciesPage() {
                         </td>
                         <td className="py-3 pr-3">
                           <div className="flex items-center gap-1 justify-end">
+                            <button onClick={() => setViewerId(p.id)}
+                              title="View policy"
+                              className="text-muted-foreground hover:text-foreground p-1">
+                              <Eye className="size-3.5" />
+                            </button>
                             <button onClick={() => { setEditing(p); setShowModal(true); }}
+                              title="Edit policy"
                               className="text-muted-foreground hover:text-foreground p-1">
                               <Edit3 className="size-3.5" />
                             </button>
                             <button onClick={() => deletePolicy(p.id)}
+                              title="Delete policy"
                               className="text-muted-foreground hover:text-red-600 p-1">
                               <Trash2 className="size-3.5" />
                             </button>
@@ -545,6 +737,18 @@ export default function PoliciesPage() {
           existing={editing}
           onClose={() => { setShowModal(false); setEditing(null); }}
           onSaved={load}
+        />
+      )}
+      {viewerId && (
+        <PolicyViewerModal
+          policyId={viewerId}
+          onClose={() => setViewerId(null)}
+          onEdit={() => {
+            const p = policies.find((x) => x.id === viewerId) ?? null;
+            setViewerId(null);
+            setEditing(p);
+            setShowModal(true);
+          }}
         />
       )}
     </div>
