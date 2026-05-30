@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, Trash2, X, BookOpen, Sparkles, FileCog } from "lucide-react";
+import { Plus, Trash2, X, BookOpen, Sparkles, FileCog, Pencil } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,19 +20,53 @@ interface Framework {
   createdAt: string;
 }
 
-interface ControlDraft { controlRef: string; title: string; description?: string; guidance?: string; }
-interface ClauseDraft  { clauseNumber: string; title: string; controls: ControlDraft[]; }
+interface ControlDraft { id?: string; controlRef: string; title: string; description?: string; guidance?: string; }
+interface ClauseDraft  { id?: string; clauseNumber: string; title: string; controls: ControlDraft[]; }
 
 function emptyControl(): ControlDraft { return { controlRef: "", title: "", description: "", guidance: "" }; }
 function emptyClause(): ClauseDraft   { return { clauseNumber: "", title: "", controls: [emptyControl()] }; }
 
-function CreateModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+function FrameworkModal({ editingId, onClose, onSaved }: { editingId: string | null; onClose: () => void; onSaved: () => void }) {
+  const isEdit = !!editingId;
   const [name, setName]               = useState("");
   const [description, setDescription] = useState("");
   const [version, setVersion]         = useState("1.0");
   const [clauses, setClauses]         = useState<ClauseDraft[]>([emptyClause()]);
   const [saving, setSaving]           = useState(false);
+  const [loading, setLoading]         = useState(isEdit);
   const [error, setError]             = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!editingId) return;
+    fetch(`/api/frameworks/${editingId}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.framework) { setError(d.error ?? "Failed to load"); return; }
+        setName(d.framework.name ?? "");
+        setDescription(d.framework.description ?? "");
+        setVersion(d.framework.version ?? "1.0");
+        setClauses(
+          (d.framework.clauses ?? []).length
+            ? d.framework.clauses.map((cl: ClauseDraft) => ({
+                id: cl.id,
+                clauseNumber: cl.clauseNumber,
+                title: cl.title,
+                controls: (cl.controls ?? []).length
+                  ? cl.controls.map((ctrl) => ({
+                      id: ctrl.id,
+                      controlRef: ctrl.controlRef,
+                      title: ctrl.title,
+                      description: ctrl.description ?? "",
+                      guidance: ctrl.guidance ?? "",
+                    }))
+                  : [emptyControl()],
+              }))
+            : [emptyClause()],
+        );
+      })
+      .catch(() => setError("Failed to load framework"))
+      .finally(() => setLoading(false));
+  }, [editingId]);
 
   function updateClause(idx: number, patch: Partial<ClauseDraft>) {
     setClauses((prev) => prev.map((c, i) => i === idx ? { ...c, ...patch } : c));
@@ -50,11 +84,13 @@ function CreateModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
     const cleanClauses = clauses
       .filter((c) => c.clauseNumber.trim() && c.title.trim())
       .map((c) => ({
+        ...(c.id && { id: c.id }),
         clauseNumber: c.clauseNumber.trim(),
         title: c.title.trim(),
         controls: c.controls
           .filter((ctrl) => ctrl.controlRef.trim() && ctrl.title.trim())
           .map((ctrl) => ({
+            ...(ctrl.id && { id: ctrl.id }),
             controlRef: ctrl.controlRef.trim(),
             title: ctrl.title.trim(),
             description: ctrl.description?.trim() || undefined,
@@ -68,8 +104,10 @@ function CreateModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
     }
     setSaving(true);
     try {
-      const res = await fetch("/api/frameworks", {
-        method: "POST",
+      const url    = isEdit ? `/api/frameworks/${editingId}` : "/api/frameworks";
+      const method = isEdit ? "PATCH" : "POST";
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
@@ -96,11 +134,14 @@ function CreateModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
     >
       <div className="bg-background border border-border rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
         <div className="px-5 py-3 border-b border-border flex items-center justify-between">
-          <h2 className="font-semibold text-foreground">New custom framework</h2>
+          <h2 className="font-semibold text-foreground">{isEdit ? "Edit custom framework" : "New custom framework"}</h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
             <X className="size-4" />
           </button>
         </div>
+        {loading ? (
+          <div className="p-8 text-center text-sm text-muted-foreground">Loading framework…</div>
+        ) : (
         <form onSubmit={submit} className="overflow-y-auto p-5 space-y-4 flex-1">
           <div className="grid grid-cols-[1fr_120px] gap-3">
             <div className="space-y-1.5">
@@ -185,10 +226,11 @@ function CreateModal({ onClose, onSaved }: { onClose: () => void; onSaved: () =>
             <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">{error}</div>
           )}
         </form>
+        )}
         <div className="px-5 py-3 border-t border-border flex justify-end gap-2">
           <Button type="button" variant="ghost" size="sm" onClick={onClose}>Cancel</Button>
-          <Button type="submit" size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" onClick={submit} disabled={saving}>
-            {saving ? "Saving…" : "Create framework"}
+          <Button type="submit" size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" onClick={submit} disabled={saving || loading}>
+            {saving ? "Saving…" : isEdit ? "Save changes" : "Create framework"}
           </Button>
         </div>
       </div>
@@ -202,7 +244,7 @@ export default function FrameworksPage() {
 
   const [frameworks, setFrameworks] = useState<Framework[]>([]);
   const [loading, setLoading]       = useState(true);
-  const [showModal, setShowModal]   = useState(false);
+  const [modalState, setModalState] = useState<{ open: boolean; editingId: string | null }>({ open: false, editingId: null });
 
   function load() {
     setLoading(true);
@@ -234,7 +276,7 @@ export default function FrameworksPage() {
           <p className="text-sm text-muted-foreground">Built-in ISO standards and your custom frameworks (Enterprise only).</p>
         </div>
         {isEnterprise && (
-          <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setShowModal(true)}>
+          <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setModalState({ open: true, editingId: null })}>
             <Plus className="size-4 mr-1.5" /> New custom framework
           </Button>
         )}
@@ -314,9 +356,18 @@ export default function FrameworksPage() {
                     {f.description && <p className="text-xs text-muted-foreground line-clamp-1">{f.description}</p>}
                     <p className="text-[11px] text-muted-foreground">v{f.version} · {f.clauseCount} clauses · created {new Date(f.createdAt).toLocaleDateString("en-AU")}</p>
                   </div>
-                  <button onClick={() => deleteFramework(f.id)} className="text-muted-foreground hover:text-red-600 p-1">
-                    <Trash2 className="size-3.5" />
-                  </button>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button onClick={() => setModalState({ open: true, editingId: f.id })}
+                      title="Edit framework"
+                      className="text-muted-foreground hover:text-foreground p-1">
+                      <Pencil className="size-3.5" />
+                    </button>
+                    <button onClick={() => deleteFramework(f.id)}
+                      title="Delete framework"
+                      className="text-muted-foreground hover:text-red-600 p-1">
+                      <Trash2 className="size-3.5" />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -324,7 +375,13 @@ export default function FrameworksPage() {
         </CardContent>
       </Card>
 
-      {showModal && <CreateModal onClose={() => setShowModal(false)} onSaved={load} />}
+      {modalState.open && (
+        <FrameworkModal
+          editingId={modalState.editingId}
+          onClose={() => setModalState({ open: false, editingId: null })}
+          onSaved={load}
+        />
+      )}
     </div>
   );
 }
