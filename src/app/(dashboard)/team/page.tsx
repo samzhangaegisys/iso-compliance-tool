@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Users, UserPlus, Mail, X, AlertCircle, Check } from "lucide-react";
+import { Users, UserPlus, Mail, X, AlertCircle, Check, Clock, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,15 @@ type Member = {
   avatarUrl: string | null;
   role: string;
   joinedAt: string;
+};
+
+type PendingInvite = {
+  id: string;
+  email: string;
+  role: string;
+  inviterName: string | null;
+  expiresAt: string;
+  createdAt: string;
 };
 
 const roleColors: Record<string, string> = {
@@ -39,7 +48,7 @@ function initials(name: string) {
 
 // ── Invite Modal ───────────────────────────────────────────────────────────────
 
-function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (member: Member) => void }) {
+function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (r: { member?: Member; pendingInvite?: PendingInvite }) => void }) {
   const [firstName, setFirstName] = useState("");
   const [lastName,  setLastName]  = useState("");
   const [email,     setEmail]     = useState("");
@@ -64,7 +73,7 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
         setStatus("error");
         return;
       }
-      onSuccess(data.member);
+      onSuccess({ member: data.member, pendingInvite: data.pendingInvite });
     } catch {
       setError("Something went wrong. Please try again.");
       setStatus("error");
@@ -113,7 +122,7 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
               onChange={(e) => setEmail(e.target.value)}
               required
             />
-            <p className="text-xs text-muted-foreground">The person must already have an ISOComply account.</p>
+            <p className="text-xs text-muted-foreground">We&apos;ll email them a signup link. If they already have an account they&apos;ll be added immediately.</p>
           </div>
 
           <div className="space-y-1.5">
@@ -158,23 +167,40 @@ function InviteModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 
 export default function TeamPage() {
   const org = useOrg();
-  const [members,      setMembers]      = useState<Member[]>([]);
-  const [loading,      setLoading]      = useState(true);
-  const [showInvite,   setShowInvite]   = useState(false);
-  const [inviteSuccess,setInviteSuccess]= useState(false);
+  const [members,        setMembers]        = useState<Member[]>([]);
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
+  const [loading,        setLoading]        = useState(true);
+  const [showInvite,     setShowInvite]     = useState(false);
+  const [inviteSuccess,  setInviteSuccess]  = useState<string | null>(null);
 
-  useEffect(() => {
+  function load() {
     fetch("/api/team")
-      .then((r) => r.json())
-      .then((data) => { setMembers(data.members ?? []); setLoading(false); })
+      .then((r) => r.ok ? r.json() : { members: [], pendingInvites: [] })
+      .then((data) => {
+        setMembers(data.members ?? []);
+        setPendingInvites(data.pendingInvites ?? []);
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
-  }, []);
+  }
+  useEffect(() => { load(); }, []);
 
-  function handleInviteSuccess(member: Member) {
-    setMembers((prev) => [...prev, member]);
+  function handleInviteSuccess(result: { member?: Member; pendingInvite?: PendingInvite }) {
+    if (result.member) {
+      setMembers((prev) => [...prev, result.member!]);
+      setInviteSuccess(`Added ${result.member.name} to the team.`);
+    } else if (result.pendingInvite) {
+      setPendingInvites((prev) => [result.pendingInvite!, ...prev]);
+      setInviteSuccess(`Invite sent to ${result.pendingInvite.email}. They'll get an email with a signup link.`);
+    }
     setShowInvite(false);
-    setInviteSuccess(true);
-    setTimeout(() => setInviteSuccess(false), 4000);
+    setTimeout(() => setInviteSuccess(null), 5000);
+  }
+
+  async function revokeInvite(id: string, email: string) {
+    if (!confirm(`Revoke the invite sent to ${email}?`)) return;
+    const res = await fetch(`/api/team/invite?id=${id}`, { method: "DELETE" });
+    if (res.ok) load();
   }
 
   const canInvite = org?.role === "OWNER" || org?.role === "ADMIN";
@@ -205,8 +231,50 @@ export default function TeamPage() {
         {inviteSuccess && (
           <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">
             <Check className="size-4 shrink-0" />
-            Member added successfully!
+            {inviteSuccess}
           </div>
+        )}
+
+        {pendingInvites.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Clock className="size-4" />Pending invites ({pendingInvites.length})
+              </CardTitle>
+              <CardDescription>Waiting for the recipient to sign up. Links expire after 14 days.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="divide-y divide-border">
+                {pendingInvites.map((inv) => {
+                  const expiringSoon = new Date(inv.expiresAt).getTime() - Date.now() < 2 * 86_400_000;
+                  return (
+                    <li key={inv.id} className="flex items-center gap-3 py-3">
+                      <div className="size-9 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+                        <Mail className="size-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{inv.email}</p>
+                        <p className="text-xs text-muted-foreground">
+                          Invited as <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${roleColors[inv.role] ?? roleColors.MEMBER}`}>{inv.role}</span>
+                          {inv.inviterName ? ` by ${inv.inviterName}` : ""}
+                          {expiringSoon ? <span className="ml-2 text-amber-700">· expires {new Date(inv.expiresAt).toLocaleDateString("en-AU")}</span> : null}
+                        </p>
+                      </div>
+                      {canInvite && (
+                        <button
+                          onClick={() => revokeInvite(inv.id, inv.email)}
+                          className="text-muted-foreground hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50"
+                          title="Revoke invite"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </CardContent>
+          </Card>
         )}
 
         <Card>

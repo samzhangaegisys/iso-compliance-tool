@@ -448,15 +448,15 @@ function TopBar() {
 
             {/* Menu items */}
             <div className="p-1.5">
-              <Link href="/settings?tab=profile" onClick={() => setUserMenuOpen(false)}
+              <Link href="/settings" onClick={() => setUserMenuOpen(false)}
                 className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-foreground hover:bg-muted transition-colors">
                 <UserCog className="size-4 text-muted-foreground shrink-0" />
-                Edit Profile
+                Profile
               </Link>
-              <Link href="/settings?tab=profile" onClick={() => setUserMenuOpen(false)}
+              <Link href="/settings" onClick={() => setUserMenuOpen(false)}
                 className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-foreground hover:bg-muted transition-colors">
                 <KeyRound className="size-4 text-muted-foreground shrink-0" />
-                Security & MFA
+                Settings
               </Link>
             </div>
 
@@ -466,7 +466,7 @@ function TopBar() {
                 className="flex items-center gap-2.5 w-full px-3 py-2 rounded-xl text-sm text-red-600 hover:bg-red-50 transition-colors"
               >
                 <LogOut className="size-4 shrink-0" />
-                Log Out
+                Sign Out
               </button>
             </div>
           </div>

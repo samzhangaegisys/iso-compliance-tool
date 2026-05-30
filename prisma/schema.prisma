@@ -26,6 +26,7 @@ model Organisation {
   policies             Policy[]
   controlMappings      ControlMapping[]
   customFrameworks     IsoStandard[]
+  teamInvites          TeamInvite[]
 }
 
 model OrgMember {
@@ -507,4 +508,27 @@ enum MappingType {
   EQUIVALENT   // controls satisfy the same intent — evidence is freely shareable
   SIMILAR      // overlap but require additional context
   RELATED      // adjacent / referenceable
+}
+
+// ── Team invites ─────────────────────────────────────────────────────────────
+// Pending invitations for people who do NOT yet have an ISOComply account.
+// Existing-user invites continue to create OrgMember rows directly. When a
+// pending invite's email registers (carrying the token in the signup link),
+// the registration flow consumes the row and creates the OrgMember.
+model TeamInvite {
+  id           String        @id @default(cuid())
+  orgId        String
+  email        String
+  role         OrgRole       @default(MEMBER)
+  token        String        @unique
+  expiresAt    DateTime
+  invitedBy    String        // userId of the inviter, denormalised name in meta
+  inviterName  String?
+  acceptedAt   DateTime?
+  createdAt    DateTime      @default(now())
+  organisation Organisation  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, email])
+  @@index([token])
+  @@index([orgId])
 }
