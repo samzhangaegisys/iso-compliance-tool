@@ -29,6 +29,7 @@ import {
   Loader2,
   BookOpen,
   Shield,
+  Wand2,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -775,6 +776,43 @@ function UploadModal({ onClose, onUploaded, projects }: { onClose: () => void; o
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
 
+  // Cross-framework mapping hint: if the selected control has equivalence
+  // mappings to controls in other standards the org has projects for, offer
+  // to also upload this evidence against the mapped control.
+  interface MappingHint {
+    mappingId: string;
+    mappingType: "EQUIVALENT" | "SIMILAR" | "RELATED";
+    targetControlRef: string;
+    targetControlTitle: string;
+    targetStandardCode: string;
+    targetStandardName: string;
+    candidateProjectId: string | null;
+    candidateProjectName: string | null;
+  }
+  const [mappingHints, setMappingHints] = useState<MappingHint[]>([]);
+  const [enabledHintIds, setEnabledHintIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    setMappingHints([]);
+    setEnabledHintIds(new Set());
+    if (!selectedProjectId || !selectedControl) return;
+    const ac = new AbortController();
+    fetch(`/api/evidence/mapping-suggestions?projectId=${encodeURIComponent(selectedProjectId)}&controlRef=${encodeURIComponent(selectedControl)}`, { signal: ac.signal })
+      .then((r) => r.json())
+      .then((d) => setMappingHints(d.suggestions ?? []))
+      .catch(() => {});
+    return () => ac.abort();
+  }, [selectedProjectId, selectedControl]);
+
+  function toggleHint(id: string) {
+    setEnabledHintIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   const selectedProject = projects.find((p) => p.id === selectedProjectId);
   const stdData = ISO_STANDARDS.find((s) => s.code === selectedProject?.standardCode);
 
@@ -1014,6 +1052,45 @@ function UploadModal({ onClose, onUploaded, projects }: { onClose: () => void; o
                 </select>
               </div>
 
+              {/* Cross-framework mapping hint */}
+              {mappingHints.length > 0 && (
+                <div className="rounded-xl border border-violet-200 bg-violet-50/40 p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Wand2 className="size-3.5 text-violet-600" />
+                    <p className="text-xs font-semibold text-violet-900">Suggest this mapping?</p>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mb-2">
+                    This control has cross-framework mappings. Also upload the same evidence to:
+                  </p>
+                  <div className="space-y-1.5">
+                    {mappingHints.map((h) => {
+                      const enabled = enabledHintIds.has(h.mappingId);
+                      const disabled = !h.candidateProjectId;
+                      return (
+                        <label key={h.mappingId} className={`flex items-start gap-2 px-2 py-1.5 rounded-lg border ${enabled ? "border-violet-400 bg-background" : "border-transparent"} ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:bg-background"}`}>
+                          <input type="checkbox"
+                            checked={enabled}
+                            disabled={disabled}
+                            onChange={() => toggleHint(h.mappingId)}
+                            className="mt-0.5" />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs text-foreground">
+                              <span className="font-mono">{h.targetStandardCode}</span> · <span className="font-medium">{h.targetControlRef}</span> — {h.targetControlTitle}
+                              <span className="ml-1 text-[10px] uppercase tracking-wide text-violet-700 font-semibold">({h.mappingType})</span>
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {h.candidateProjectName
+                                ? `Will be added to project: ${h.candidateProjectName}`
+                                : "No active project for this standard — create one to enable."}
+                            </p>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Description */}
               <div>
                 <label className="text-xs font-medium text-foreground block mb-1">
@@ -1103,22 +1180,59 @@ function UploadModal({ onClose, onUploaded, projects }: { onClose: () => void; o
                   setUploading(true);
                   setUploadError("");
                   const fileName = localFiles[0]?.name ?? [...selectedCloudFiles][0] ?? "Evidence document";
+                  const basePayload = {
+                    name: fileName,
+                    description: description || undefined,
+                    fileType: fileName.split(".").pop()?.toUpperCase(),
+                    classification,
+                    expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
+                  };
                   try {
-                    const res = await fetch("/api/evidence", {
+                    const primary = await fetch("/api/evidence", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({
+                        ...basePayload,
                         projectId: selectedProjectId,
                         controlRef: selectedControl,
-                        name: fileName,
-                        description: description || undefined,
-                        fileType: fileName.split(".").pop()?.toUpperCase(),
-                        classification,
-                        expiresAt: expiresAt ? new Date(expiresAt).toISOString() : undefined,
                       }),
                     });
-                    const data = await res.json();
-                    if (!res.ok) { setUploadError(data.error ?? "Upload failed"); setUploading(false); return; }
+                    const primaryData = await primary.json();
+                    if (!primary.ok) {
+                      setUploadError(primaryData.error ?? "Upload failed");
+                      setUploading(false);
+                      return;
+                    }
+
+                    // Fan out to any selected mapping suggestions. Failures here
+                    // don't fail the primary upload — surface them as a warning.
+                    const selectedHints = mappingHints.filter((h) =>
+                      enabledHintIds.has(h.mappingId) && h.candidateProjectId,
+                    );
+                    if (selectedHints.length > 0) {
+                      const results = await Promise.allSettled(
+                        selectedHints.map((h) =>
+                          fetch("/api/evidence", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              ...basePayload,
+                              projectId: h.candidateProjectId,
+                              controlRef: h.targetControlRef,
+                            }),
+                          }).then(async (r) => {
+                            if (!r.ok) throw new Error((await r.json()).error ?? "Mapping upload failed");
+                          }),
+                        ),
+                      );
+                      const failed = results.filter((r) => r.status === "rejected").length;
+                      if (failed > 0) {
+                        setUploadError(`Primary uploaded, but ${failed} mapped upload${failed === 1 ? "" : "s"} failed.`);
+                        setUploading(false);
+                        return;
+                      }
+                    }
+
                     onUploaded();
                     onClose();
                   } catch {
