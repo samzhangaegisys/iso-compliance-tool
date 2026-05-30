@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Sparkles, Send, X, Loader2, AlertCircle } from "lucide-react";
 import Link from "next/link";
 
@@ -95,9 +96,14 @@ export function AIAssistantDrawer({ open, onClose }: Props) {
   }
 
   // Don't render anything when closed — drawer animates in via state-driven mounting
-  if (!open) return null;
+  // Skip on the server too: createPortal needs `document` which only exists client-side.
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  // Render via portal into <body> so the drawer escapes the dashboard <header>'s
+  // backdrop-filter / containing block. Without the portal, `position: fixed`
+  // resolves relative to the header (h-14 = 56px) and the drawer collapses
+  // to a 56px-tall sliver in the top-right.
+  return createPortal(
     <>
       {/* Backdrop */}
       <button
@@ -232,7 +238,8 @@ export function AIAssistantDrawer({ open, onClose }: Props) {
           </p>
         </form>
       </aside>
-    </>
+    </>,
+    document.body,
   );
 }
 

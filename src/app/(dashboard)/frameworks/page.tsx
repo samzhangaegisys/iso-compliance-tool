@@ -312,7 +312,13 @@ export default function FrameworksPage() {
           {loading ? (
             <p className="text-sm text-muted-foreground py-4 text-center">Loading…</p>
           ) : builtIn.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">No built-in standards loaded yet. Create your first compliance project to seed the catalogue.</p>
+            <div className="py-6 flex flex-col items-center text-center gap-3">
+              <p className="text-sm text-muted-foreground">No built-in standards loaded yet. Create your first compliance project to seed the catalogue.</p>
+              <Link href="/projects"
+                className="inline-flex items-center justify-center rounded-md bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium h-9 px-4">
+                Create your first project →
+              </Link>
+            </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               {builtIn.map((f) => (
