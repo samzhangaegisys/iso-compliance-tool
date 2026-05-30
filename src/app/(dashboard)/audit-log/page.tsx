@@ -25,7 +25,7 @@ interface DistinctAction {
 }
 
 function actionLabel(action: string): string {
-  // Friendlier display for common actions; falls back to the raw key.
+  // Friendlier display for common actions; falls back to a generic humanizer.
   const map: Record<string, string> = {
     "ai.advisor_query": "AI Advisor query",
     "evidence.uploaded": "Evidence uploaded",
@@ -35,11 +35,36 @@ function actionLabel(action: string): string {
     "risk.updated": "Risk updated",
     "risk.deleted": "Risk deleted",
     "team.member_invited": "Team member invited",
+    "team.invite_sent": "Team invite sent",
+    "team.invite_revoked": "Team invite revoked",
     "org.updated": "Organisation updated",
     "org.branding_updated": "Branding updated",
   };
-  return map[action] ?? action;
+  if (map[action]) return map[action];
+  // Generic fallback: "user.profile_updated" → "User profile updated"
+  // (sentence case across the whole string with dots and underscores swapped for spaces).
+  const raw = action.replace(/[._]+/g, " ").trim();
+  return raw ? raw[0].toUpperCase() + raw.slice(1) : action;
 }
+
+// Pluck a sensible display name from the row's meta payload — most write
+// handlers stash one of these fields when they call writeAuditLog. Falls back
+// to a shortened entityId so the column still shows something useful.
+function entityDisplayName(meta: unknown, entityId: string | null): string {
+  if (meta && typeof meta === "object") {
+    const m = meta as Record<string, unknown>;
+    const candidates = ["name", "title", "email", "invitedEmail", "controlRef"];
+    for (const key of candidates) {
+      const v = m[key];
+      if (typeof v === "string" && v.trim()) return v;
+    }
+  }
+  if (!entityId) return "—";
+  // Short prefix so the column doesn't blow up the table width.
+  return entityId.length > 12 ? `${entityId.slice(0, 8)}…` : entityId;
+}
+
+const PAGE_SIZE = 25;
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleString("en-AU", {
@@ -60,6 +85,7 @@ export default function AuditLogPage() {
   const [search, setSearch]         = useState<string>("");
   const [cursor, setCursor]         = useState<string | null>(null);
   const [hasMore, setHasMore]       = useState(false);
+  const [page, setPage]             = useState(1);
 
   const load = useCallback(async (resetCursor: boolean) => {
     setLoading(true);
@@ -122,6 +148,13 @@ export default function AuditLogPage() {
         (e.entityId ?? "").toLowerCase().includes(search.trim().toLowerCase())
       )
     : entries;
+
+  // Reset to page 1 whenever filters / underlying list change. Otherwise
+  // narrowing a result set could leave us on a page that no longer exists.
+  useEffect(() => { setPage(1); }, [search, actionFilter, from, to, entries.length]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   if (!org) return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;
 
@@ -213,7 +246,32 @@ export default function AuditLogPage() {
         </CardHeader>
         <CardContent>
           {loading && entries.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">Loading…</p>
+            // Skeleton rows matching the table layout so the page doesn't go
+            // blank during the initial fetch.
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-muted-foreground border-b border-border">
+                    <th className="py-2 font-medium">When</th>
+                    <th className="py-2 font-medium">User</th>
+                    <th className="py-2 font-medium">Action</th>
+                    <th className="py-2 font-medium">Entity</th>
+                    <th className="py-2 font-medium">Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <tr key={i} className="border-b border-border animate-pulse">
+                      <td className="py-3 pr-3"><div className="h-3 bg-muted rounded w-24" /></td>
+                      <td className="py-3 pr-3"><div className="h-3 bg-muted rounded w-32" /></td>
+                      <td className="py-3 pr-3"><div className="h-3 bg-muted rounded w-40" /></td>
+                      <td className="py-3 pr-3"><div className="h-3 bg-muted rounded w-28" /></td>
+                      <td className="py-3 pr-3"><div className="h-3 bg-muted rounded w-16" /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : filtered.length === 0 ? (
             <p className="text-sm text-muted-foreground py-8 text-center">No audit entries match your filters.</p>
           ) : (
@@ -229,14 +287,19 @@ export default function AuditLogPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((e) => (
+                  {paged.map((e) => (
                     <tr key={e.id} className="border-b border-border hover:bg-muted/40">
                       <td className="py-2 pr-3 text-xs text-muted-foreground whitespace-nowrap">
                         {formatTime(e.createdAt)}
                       </td>
                       <td className="py-2 pr-3 text-xs">{e.userName}</td>
                       <td className="py-2 pr-3 text-xs font-medium">{actionLabel(e.action)}</td>
-                      <td className="py-2 pr-3 text-[11px] text-muted-foreground font-mono">{e.entityId ?? "—"}</td>
+                      <td className="py-2 pr-3 text-xs">
+                        {/* Show a human-readable name; reveal the raw entityId on hover via title attr */}
+                        <span title={e.entityId ?? undefined} className="cursor-default border-b border-dotted border-muted-foreground/40">
+                          {entityDisplayName(e.meta, e.entityId)}
+                        </span>
+                      </td>
                       <td className="py-2 pr-3 text-[11px] text-muted-foreground">
                         {e.meta ? (
                           <details>
@@ -253,10 +316,28 @@ export default function AuditLogPage() {
                   ))}
                 </tbody>
               </table>
+              {/* Pagination controls — 25 per page. "Load more" still appears
+                  separately when the server-side cursor has more rows beyond
+                  what's currently loaded. */}
+              <div className="flex items-center justify-between gap-3 py-3 text-xs text-muted-foreground">
+                <span>
+                  Showing {filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1}
+                  –{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                    Previous
+                  </Button>
+                  <span className="text-xs">Page {page} of {totalPages}</span>
+                  <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>
+                    Next
+                  </Button>
+                </div>
+              </div>
               {hasMore && (
-                <div className="text-center py-4">
+                <div className="text-center py-2">
                   <Button variant="outline" size="sm" onClick={() => load(false)} disabled={loading}>
-                    Load more
+                    Load more from server
                   </Button>
                 </div>
               )}

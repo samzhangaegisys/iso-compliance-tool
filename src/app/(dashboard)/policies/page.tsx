@@ -617,7 +617,7 @@ Reviewed annually and after every P1 incident.`,
               <select value={status} onChange={(e) => setStatus(e.target.value as Status)}
                 className="w-full text-sm border border-border rounded-lg px-2.5 py-1.5 bg-background">
                 <option value="DRAFT">Draft</option>
-                <option value="PUBLISHED">Published</option>
+                <option value="PUBLISHED">Active</option>
                 <option value="ARCHIVED">Archived</option>
               </select>
             </div>
@@ -766,7 +766,7 @@ export default function PoliciesPage() {
                 className="h-8 text-xs border border-border rounded-lg px-2 bg-background">
                 <option value="all">All statuses</option>
                 <option value="DRAFT">Draft</option>
-                <option value="PUBLISHED">Published</option>
+                <option value="PUBLISHED">Active</option>
                 <option value="ARCHIVED">Archived</option>
               </select>
             </div>

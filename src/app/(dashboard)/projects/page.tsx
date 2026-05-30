@@ -915,6 +915,7 @@ export default function ProjectsPage() {
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [showModal, setShowModal]         = useState(false);
   const [viewMode, setViewMode]           = useState<"cards" | "gantt">("cards");
+  const [statusFilter, setStatusFilter]   = useState<ProjectStatus | null>(null);
 
   async function loadProjects() {
     setLoadingProjects(true);
@@ -933,8 +934,13 @@ export default function ProjectsPage() {
     loadProjects();
   }, []);
 
-  const active    = projects.filter((p) => p.status === "ACTIVE");
-  const other     = projects.filter((p) => p.status !== "ACTIVE");
+  // Clicking a status stat card filters to that status. When no filter is
+  // active, we keep the original "Active first, others below" layout.
+  const visibleProjects = statusFilter
+    ? projects.filter((p) => p.status === statusFilter)
+    : projects;
+  const active    = visibleProjects.filter((p) => p.status === "ACTIVE");
+  const other     = visibleProjects.filter((p) => p.status !== "ACTIVE");
   const hasProjects = projects.length > 0;
 
   async function addProject(_p: unknown) {
@@ -993,13 +999,21 @@ export default function ProjectsPage() {
           </div>
         </div>
 
-        {/* Summary chips */}
+        {/* Summary chips — clicking toggles a status filter on the list below */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {(["ACTIVE","PAUSED","COMPLETED","ARCHIVED"] as ProjectStatus[]).map((s) => {
-            const cfg   = statusConfig[s];
-            const count = projects.filter((p) => p.status === s).length;
+            const cfg    = statusConfig[s];
+            const count  = projects.filter((p) => p.status === s).length;
+            const active = statusFilter === s;
             return (
-              <div key={s} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+              <button
+                key={s}
+                type="button"
+                onClick={() => setStatusFilter(active ? null : s)}
+                aria-pressed={active}
+                title={active ? "Click to clear filter" : `Filter to ${cfg.label}`}
+                className={`flex items-center gap-3 rounded-xl border bg-card p-3 transition-all text-left hover:border-blue-300 hover:shadow-sm ${active ? "border-blue-500 ring-2 ring-blue-200" : "border-border"}`}
+              >
                 <span className={`size-8 rounded-lg flex items-center justify-center ${cfg.cls}`}>
                   <cfg.icon className="size-4" />
                 </span>
@@ -1007,10 +1021,16 @@ export default function ProjectsPage() {
                   <p className="text-lg font-bold leading-none">{count}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">{cfg.label}</p>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
+        {statusFilter && (
+          <div className="flex items-center justify-between text-xs text-muted-foreground -mt-3">
+            <span>Filtered to <b>{statusConfig[statusFilter].label}</b> · {visibleProjects.length} project{visibleProjects.length === 1 ? "" : "s"}</span>
+            <button onClick={() => setStatusFilter(null)} className="text-blue-600 hover:underline">Clear filter</button>
+          </div>
+        )}
 
         {/* Certification journey guide */}
         {hasProjects && <JourneyGuide projects={projects} />}

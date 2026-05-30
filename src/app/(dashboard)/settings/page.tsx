@@ -118,7 +118,7 @@ function ProfileTab() {
           </div>
           <div className="space-y-1.5 max-w-sm">
             <Label>Phone number</Label>
-            <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+44 7700 000000" />
+            <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+61 400 000 000" />
           </div>
           <div className="flex items-center gap-3">
             <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white"

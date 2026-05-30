@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle, Plus, Search, Sparkles, ShieldAlert,
-  ChevronDown, ChevronUp, X, Edit3, Trash2,
+  ChevronDown, ChevronUp, X, Edit3, Trash2, Download,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -390,6 +390,39 @@ export default function RisksPage() {
     if (res.ok) load();
   }
 
+  // Export the current risk register as CSV (RFC 4180 quoting). Columns
+  // match the audit-binder expectations: Title, Category, Likelihood,
+  // Impact, Score, Treatment, Status, Next Review Date.
+  function exportRisksCsv() {
+    const escape = (v: string | number | null | undefined) => {
+      const s = v == null ? "" : String(v);
+      // Quote whenever the value contains a comma, quote, or newline. Inner
+      // double-quotes are doubled per CSV spec.
+      return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const header = ["Title", "Category", "Likelihood", "Impact", "Score", "Treatment", "Status", "Next Review Date"];
+    const rows = risks.map((r) => [
+      r.title,
+      r.category,
+      r.likelihood,
+      r.impact,
+      r.score,
+      r.treatment,
+      r.status,
+      r.reviewDate ? r.reviewDate.slice(0, 10) : "",
+    ]);
+    const csv = [header, ...rows].map((row) => row.map(escape).join(",")).join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `risk-register-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div className="space-y-6 pb-10">
       <div className="flex items-start justify-between gap-4">
@@ -397,9 +430,14 @@ export default function RisksPage() {
           <h1 className="text-2xl font-bold text-foreground">Risk Register</h1>
           <p className="text-sm text-muted-foreground">Required by ISO 27001 §6.1.2 — track risks, assess severity, and assign treatments.</p>
         </div>
-        <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => { setEditing(null); setShowModal(true); }}>
-          <Plus className="size-4 mr-1.5" /> New risk
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={exportRisksCsv} disabled={risks.length === 0}>
+            <Download className="size-4 mr-1.5" /> Export
+          </Button>
+          <Button className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => { setEditing(null); setShowModal(true); }}>
+            <Plus className="size-4 mr-1.5" /> New risk
+          </Button>
+        </div>
       </div>
 
       {risks.length > 0 && (
