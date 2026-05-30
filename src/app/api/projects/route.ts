@@ -86,16 +86,18 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid input." }, { status: 400 });
   }
-  const { standardCode, name, description, targetDate, startDate, leadUserId } = parsed.data;
+  const { standardCode, name, description, targetDate, startDate, leadUserId: requestedLead } = parsed.data;
+
+  // Fall back to the creator as the lead when none was picked (or "" was sent).
+  // Front-end normalises empty selection to null; this just enforces the contract.
+  const leadUserId = requestedLead ?? session.user.id;
 
   // Validate leadUserId is a member of this org
-  if (leadUserId) {
-    const leadMember = await prisma.orgMember.findFirst({
-      where: { userId: leadUserId, orgId: membership.orgId },
-    });
-    if (!leadMember) {
-      return NextResponse.json({ error: "Lead user is not a member of this organisation" }, { status: 400 });
-    }
+  const leadMember = await prisma.orgMember.findFirst({
+    where: { userId: leadUserId, orgId: membership.orgId },
+  });
+  if (!leadMember) {
+    return NextResponse.json({ error: "Lead user is not a member of this organisation" }, { status: 400 });
   }
 
   let standard = await prisma.isoStandard.findUnique({ where: { code: standardCode } });

@@ -204,10 +204,16 @@ export default function CrossMappingsPage() {
 
   function loadAll() {
     setLoading(true);
+    // Safety net: if any of the three fetches hang (cold start, transient
+    // network), force the loading state to resolve after 10s so the page
+    // doesn't sit on "Loading…" indefinitely. Whatever data arrived by then
+    // wins; the rest stays empty and the user sees the empty state.
+    const safetyTimer = setTimeout(() => setLoading(false), 10_000);
+
     Promise.all([
-      fetch("/api/control-mappings").then((r) => r.json()),
-      fetch("/api/controls/catalog").then((r) => r.json()),
-      fetch("/api/control-mappings/suggestions").then((r) => r.json()),
+      fetch("/api/control-mappings").then((r) => r.ok ? r.json() : { mappings: [] }),
+      fetch("/api/controls/catalog").then((r) => r.ok ? r.json() : { standards: [] }),
+      fetch("/api/control-mappings/suggestions").then((r) => r.ok ? r.json() : { suggestions: [] }),
     ])
       .then(([m, c, s]) => {
         setMappings(m.mappings ?? []);
@@ -215,7 +221,10 @@ export default function CrossMappingsPage() {
         setSuggestions(s.suggestions ?? []);
       })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => {
+        clearTimeout(safetyTimer);
+        setLoading(false);
+      });
   }
 
   async function acceptSuggestion(s: Suggestion) {
@@ -362,9 +371,31 @@ export default function CrossMappingsPage() {
           {loading ? (
             <p className="text-sm text-muted-foreground py-8 text-center">Loading…</p>
           ) : filtered.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">
-              {mappings.length === 0 ? "No mappings yet." : "No mappings match your search."}
-            </p>
+            mappings.length === 0 ? (
+              <div className="py-10 flex flex-col items-center text-center gap-3 max-w-md mx-auto">
+                <div className="size-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <Link2 className="size-5" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold text-foreground">No cross-framework mappings yet</p>
+                  <p className="text-xs text-muted-foreground">
+                    Declare equivalences between controls across standards so the same piece of evidence
+                    can satisfy ISO 27001 §A.5.1 AND ISO 9001 §7.5.1, for example.
+                  </p>
+                </div>
+                {standards.length >= 2 ? (
+                  <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white" onClick={() => setShowModal(true)}>
+                    <Plus className="size-4 mr-1.5" /> Create first mapping
+                  </Button>
+                ) : (
+                  <a href="/projects" className="inline-flex items-center text-xs text-blue-600 hover:text-blue-700 font-medium">
+                    Create projects for 2+ standards first →
+                  </a>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground py-8 text-center">No mappings match your search.</p>
+            )
           ) : (
             <div className="space-y-2">
               {filtered.map((m) => (

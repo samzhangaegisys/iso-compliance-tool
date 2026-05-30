@@ -2,7 +2,11 @@
 
 import { useEffect, useRef, useCallback } from "react";
 
-const SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "1x00000000000000000000AA";
+// Production site key from env. No fallback — using Cloudflare's "always-pass"
+// test key (1x00000000000000000000AA) silently accepts every request and
+// defeats the whole point of the captcha. If this is empty in any environment,
+// the widget renders an inline configuration error instead of pretending to work.
+const SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
 declare global {
   interface Window {
@@ -25,6 +29,7 @@ export function TurnstileWidget({ onVerify, onExpire }: Props) {
   const widgetIdRef = useRef<string | null>(null);
 
   const renderWidget = useCallback(() => {
+    if (!SITE_KEY) return;
     if (!containerRef.current || !window.turnstile) return;
     if (widgetIdRef.current) return; // already rendered
     widgetIdRef.current = window.turnstile.render(containerRef.current, {
@@ -39,6 +44,7 @@ export function TurnstileWidget({ onVerify, onExpire }: Props) {
   }, [onVerify, onExpire]);
 
   useEffect(() => {
+    if (!SITE_KEY) return; // misconfigured — render inline error, don't load script
     if (window.turnstile) {
       renderWidget();
       return;
@@ -58,6 +64,14 @@ export function TurnstileWidget({ onVerify, onExpire }: Props) {
       }
     };
   }, [renderWidget]);
+
+  if (!SITE_KEY) {
+    return (
+      <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        Captcha is misconfigured. Set <code className="font-mono">NEXT_PUBLIC_TURNSTILE_SITE_KEY</code> in the deploy environment.
+      </div>
+    );
+  }
 
   return <div ref={containerRef} className="mt-2" />;
 }

@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { usePlan } from "@/lib/plan-context";
 import { useOrg } from "@/lib/org-context";
+import { useSession } from "next-auth/react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -332,6 +333,8 @@ function NewProjectModal({ onClose, onAdd }: {
 }) {
   const org = useOrg();
   const { plan: adminPlan } = usePlan();
+  const { data: session } = useSession();
+  const currentUserId = session?.user?.id ?? "";
   const MOCK_PLAN = org?.plan ?? adminPlan;
   const [step, setStep]     = useState<1 | 2>(1);
   const [chosen, setChosen] = useState<string | null>(null);
@@ -345,6 +348,14 @@ function NewProjectModal({ onClose, onAdd }: {
   const [teamMembers, setTeamMembers] = useState<{ id: string; userId: string; name: string; email: string; role: string }[]>([]);
   const [saving, setSaving]           = useState(false);
   const [saveError, setSaveError]     = useState("");
+
+  // Default Project Lead to the current user as soon as we know their ID.
+  // The user can still pick someone else from the dropdown.
+  useEffect(() => {
+    if (currentUserId && !form.leadUserId) {
+      setForm((p) => ({ ...p, leadUserId: currentUserId }));
+    }
+  }, [currentUserId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetch("/api/team")
@@ -370,7 +381,6 @@ function NewProjectModal({ onClose, onAdd }: {
     setSaveError("");
     if (!chosen) return;
     if (!form.name.trim()) { setSaveError("Project name is required."); return; }
-    if (!form.leadUserId) { setSaveError("Please select a project lead."); return; }
     setSaving(true);
     try {
       const res = await fetch("/api/projects", {
@@ -382,7 +392,10 @@ function NewProjectModal({ onClose, onAdd }: {
           description: form.description.trim() || null,
           startDate: form.startDate,
           targetDate: form.targetDate || null,
-          leadUserId: form.leadUserId,
+          // Send null (not empty string) when no lead picked — Zod schema is
+          // .cuid().nullable().optional() and rejects "" as not-a-cuid. Server
+          // also falls back to the requesting user as lead when this is null.
+          leadUserId: form.leadUserId || null,
         }),
       });
       let data: Record<string, unknown> = {};
@@ -510,14 +523,13 @@ function NewProjectModal({ onClose, onAdd }: {
               <label className="text-xs font-medium text-foreground">Project lead <span className="text-red-500">*</span></label>
               <select value={form.leadUserId} onChange={(e) => setField("leadUserId", e.target.value)}
                 className="w-full text-sm bg-muted border border-border rounded-lg px-3 py-2 outline-none focus:border-blue-400 cursor-pointer">
-                <option value="">Select a team member…</option>
+                <option value="">Unassigned — you&apos;ll be set as lead</option>
                 {teamMembers.map((m) => (
-                  <option key={m.userId} value={m.userId}>{m.name}</option>
+                  <option key={m.userId} value={m.userId}>
+                    {m.name}{m.userId === currentUserId ? " (you)" : ""}
+                  </option>
                 ))}
               </select>
-              {teamMembers.length === 0 && (
-                <p className="text-[11px] text-amber-600">No team members found. You will be set as lead.</p>
-              )}
             </div>
 
             <div className="space-y-1.5">
